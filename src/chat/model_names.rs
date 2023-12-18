@@ -1,4 +1,4 @@
-pub enum OpenAIChatModelName {
+pub enum ChatModelName {
     Ada,
     Babbage,
     Curie,

@@ -5,7 +5,7 @@ use std::{ pin::Pin, task::{ Context, Poll } };
 use bytes::Bytes;
 use lazy_static::lazy_static;
 use regex::Regex;
-use super::OpenAIChatCompletionChunk;
+use super::ChatCompletionChunk;
 
 lazy_static! {
     static ref STREAM_RESPONSE_CHUNK_RE: Regex = Regex::new(r"^data: \{.*\}\n\n").unwrap();
@@ -24,7 +24,7 @@ fn extract_first_chunk(content: &str) -> Result<ExtractedChunkWithRemainingConte
         // Extract the JSON content
         let json_content = matched_str.strip_prefix("data: ").unwrap();
 
-        // Parse the JSON content to OpenAIChatCompletionChunk
+        // Parse the JSON content to ChatCompletionChunk
         let chunk = serde_json::from_str(json_content)?;
 
         // Return the extracted response and remaining content
@@ -55,16 +55,16 @@ fn extract_first_chunk(content: &str) -> Result<ExtractedChunkWithRemainingConte
 
 #[derive(Debug)]
 pub struct ExtractedChunkWithRemainingContent {
-    pub chunk: Option<OpenAIChatCompletionChunk>,
+    pub chunk: Option<ChatCompletionChunk>,
     pub remaining_content: Option<String>,
 }
 
-pub struct OpenAIChatCompletionStream<S> {
+pub struct ChatCompletionStream<S> {
     response_bytes_stream: S,
     remaining_content: Option<String>,
 }
 
-impl<S> OpenAIChatCompletionStream<S> where S: Stream<Item = Result<Bytes, reqwest::Error>> + Unpin {
+impl<S> ChatCompletionStream<S> where S: Stream<Item = Result<Bytes, reqwest::Error>> + Unpin {
     pub fn new(response_bytes_stream: S) -> Self {
         Self {
             response_bytes_stream,
@@ -74,10 +74,10 @@ impl<S> OpenAIChatCompletionStream<S> where S: Stream<Item = Result<Bytes, reqwe
 }
 
 impl<S> Stream
-    for OpenAIChatCompletionStream<S>
+    for ChatCompletionStream<S>
     where S: Stream<Item = Result<Bytes, reqwest::Error>> + Unpin
 {
-    type Item = OpenAIChatCompletionChunk;
+    type Item = ChatCompletionChunk;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         loop {

@@ -3,17 +3,17 @@ use futures::Stream;
 use reqwest::Client;
 use super::{
     super::OPENAI_API_KEY,
-    OpenAIChatRequestBody,
-    OpenAIChatCompletion,
-    OpenAIChatCompletionChunk,
-    OpenAIChatCompletionStream,
+    ChatRequestBody,
+    ChatCompletion,
+    ChatCompletionChunk,
+    ChatCompletionStream,
 };
 
 /// Call OpenAI chat API and return a complete chat response.
 pub async fn get_complete_chat_response(
     client: &Client,
-    request_body: &OpenAIChatRequestBody
-) -> Result<OpenAIChatCompletion> {
+    request_body: &ChatRequestBody
+) -> Result<ChatCompletion> {
     // Convert to a map
     let mut request_body = serde_json::to_value(request_body)?.as_object().unwrap().to_owned();
 
@@ -33,7 +33,7 @@ pub async fn get_complete_chat_response(
     // Parse the response content
     // If the response is successful, parse the response content as OpenAIChatResponse
     // If the response is not successful, parse the response content as OpenAIError
-    if let Ok(response) = serde_json::from_str::<OpenAIChatCompletion>(&response_content) {
+    if let Ok(response) = serde_json::from_str::<ChatCompletion>(&response_content) {
         Ok(response)
     } else {
         Err(anyhow!(response_content))
@@ -42,8 +42,8 @@ pub async fn get_complete_chat_response(
 
 pub async fn get_streamed_chat_response(
     client: &Client,
-    request_body: &OpenAIChatRequestBody
-) -> Result<impl Stream<Item = OpenAIChatCompletionChunk>> {
+    request_body: &ChatRequestBody
+) -> Result<impl Stream<Item = ChatCompletionChunk>> {
     // Convert to a map
     let mut request_body = serde_json::to_value(request_body)?.as_object().unwrap().to_owned();
 
@@ -58,7 +58,7 @@ pub async fn get_streamed_chat_response(
         .send().await?;
 
     // Create ChatResponseStream from the response bytes stream
-    Ok(OpenAIChatCompletionStream::new(response.bytes_stream()))
+    Ok(ChatCompletionStream::new(response.bytes_stream()))
 }
 
 #[cfg(test)]
@@ -67,7 +67,7 @@ mod tests {
     use anyhow::Result;
     use futures::StreamExt;
     use reqwest::Client;
-    use crate::chat::{ OpenAIChatMessage, OpenAIChatRole, OpenAIChatRequestBody };
+    use crate::chat::{ ChatMessage, ChatRole, ChatRequestBody };
     use super::{ get_complete_chat_response, get_streamed_chat_response };
 
     #[tokio::test]
@@ -75,10 +75,10 @@ mod tests {
         // Call API to get chat response
         let response = get_complete_chat_response(
             &Client::builder().timeout(Duration::from_secs(60)).build()?,
-            &OpenAIChatRequestBody::builder()
+            &ChatRequestBody::builder()
                 .messages(
-                    vec![OpenAIChatMessage {
-                        role: OpenAIChatRole::User,
+                    vec![ChatMessage {
+                        role: ChatRole::User,
                         content: "What is Rust?".to_string(),
                     }]
                 )
@@ -99,10 +99,10 @@ mod tests {
         // Call API to get the streamed chat response
         let mut stream = get_streamed_chat_response(
             &Client::builder().timeout(Duration::from_secs(60)).build()?,
-            &OpenAIChatRequestBody::builder()
+            &ChatRequestBody::builder()
                 .messages(
-                    vec![OpenAIChatMessage {
-                        role: OpenAIChatRole::User,
+                    vec![ChatMessage {
+                        role: ChatRole::User,
                         content: "What is Rust?".to_string(),
                     }]
                 )
@@ -120,14 +120,14 @@ mod tests {
     #[tokio::test]
     async fn test_stream_response() -> Result<()> {
         use super::OPENAI_API_KEY;
-        use super::OpenAIChatRequestBody;
-        use crate::chat::{ OpenAIChatMessage, OpenAIChatRole };
+        use super::ChatRequestBody;
+        use crate::chat::{ ChatMessage, ChatRole };
         use futures::StreamExt;
 
-        let request_body = OpenAIChatRequestBody::builder()
+        let request_body = ChatRequestBody::builder()
             .messages(
-                vec![OpenAIChatMessage {
-                    role: OpenAIChatRole::User,
+                vec![ChatMessage {
+                    role: ChatRole::User,
                     content: "What is Rust?".to_string(),
                 }]
             )

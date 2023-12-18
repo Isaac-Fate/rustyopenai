@@ -1,14 +1,13 @@
-use serde::{Serialize, Deserialize};
+use serde::{ Serialize, Deserialize };
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct OpenAIChatMessage {
-    
-    pub role: OpenAIChatRole,
+pub struct ChatMessage {
+    pub role: ChatRole,
     pub content: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub enum OpenAIChatRole {
+pub enum ChatRole {
     #[serde(rename = "system")]
     System,
 

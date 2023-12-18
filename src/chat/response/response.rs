@@ -7,7 +7,7 @@ pub struct OpenAIChatResponse {
     pub object: String,
     pub created: i64,
     pub model: String,
-    pub usage: OpenAIChatTokenUsage,
+    pub usage: ChatTokenUsage,
 }
 
 #[derive(Debug, Deserialize)]
@@ -24,7 +24,7 @@ pub struct OpenAIChatResponseMessage {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct OpenAIChatTokenUsage {
+pub struct ChatTokenUsage {
     pub prompt_tokens: u32,
     pub completion_tokens: u32,
     pub total_tokens: u32,
