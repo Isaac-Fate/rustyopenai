@@ -2,6 +2,8 @@
 name = "rustyopenai"
 version = "0.1.0"
 edition = "2021"
+description = "A Rust crate for interfacing with the OpenAI API."
+license = "MIT"
 homepage = "https://github.com/Isaac-Fate/rustyopenai"
 repository = "https://github.com/Isaac-Fate/rustyopenai"
 
