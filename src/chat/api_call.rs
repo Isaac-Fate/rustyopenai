@@ -1,8 +1,7 @@
 use anyhow::{ Result, anyhow };
 use futures::Stream;
-use reqwest::Client;
 use super::{
-    super::OPENAI_API_KEY,
+    super::OpenAIClient,
     ChatRequestBody,
     ChatCompletion,
     ChatCompletionChunk,
@@ -11,7 +10,7 @@ use super::{
 
 /// Call OpenAI chat API and return a complete chat response.
 pub async fn get_complete_chat_response(
-    client: &Client,
+    client: &OpenAIClient,
     request_body: &ChatRequestBody
 ) -> Result<ChatCompletion> {
     // Convert to a map
@@ -23,7 +22,6 @@ pub async fn get_complete_chat_response(
     // Call API to get chat response
     let response = client
         .post("https://api.openai.com/v1/chat/completions")
-        .header("Authorization", format!("Bearer {}", OPENAI_API_KEY.as_str()))
         .json(&request_body)
         .send().await?;
 
@@ -41,7 +39,7 @@ pub async fn get_complete_chat_response(
 }
 
 pub async fn get_streamed_chat_response(
-    client: &Client,
+    client: &OpenAIClient,
     request_body: &ChatRequestBody
 ) -> Result<impl Stream<Item = ChatCompletionChunk>> {
     // Convert to a map
@@ -53,7 +51,6 @@ pub async fn get_streamed_chat_response(
     // Call API to get chat response
     let response = client
         .post("https://api.openai.com/v1/chat/completions")
-        .header("Authorization", format!("Bearer {}", OPENAI_API_KEY.as_str()))
         .json(&request_body)
         .send().await?;
 
@@ -66,15 +63,17 @@ mod tests {
     use std::time::Duration;
     use anyhow::Result;
     use futures::StreamExt;
-    use reqwest::Client;
-    use crate::chat::{ ChatMessage, ChatRole, ChatRequestBody };
+    use crate::{ init_logger, chat::{ ChatMessage, ChatRole, ChatRequestBody }, OpenAIClient };
     use super::{ get_complete_chat_response, get_streamed_chat_response };
 
     #[tokio::test]
     async fn test_get_complete_chat_response() -> Result<()> {
+        // Initialize logger
+        init_logger();
+
         // Call API to get chat response
         let response = get_complete_chat_response(
-            &Client::builder().timeout(Duration::from_secs(60)).build()?,
+            &OpenAIClient::builder().timeout(Duration::from_secs(60)).build()?,
             &ChatRequestBody::builder()
                 .messages(
                     vec![ChatMessage {
@@ -94,11 +93,11 @@ mod tests {
     #[tokio::test]
     async fn test_get_streamed_chat_response() -> Result<()> {
         // Initialize logger
-        env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+        init_logger();
 
         // Call API to get the streamed chat response
         let mut stream = get_streamed_chat_response(
-            &Client::builder().timeout(Duration::from_secs(60)).build()?,
+            &OpenAIClient::builder().timeout(Duration::from_secs(60)).build()?,
             &ChatRequestBody::builder()
                 .messages(
                     vec![ChatMessage {
@@ -111,46 +110,6 @@ mod tests {
         ).await?;
 
         while let Some(chunk) = stream.next().await {
-            println!("{:#?}", chunk);
-        }
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_stream_response() -> Result<()> {
-        use super::OPENAI_API_KEY;
-        use super::ChatRequestBody;
-        use crate::chat::{ ChatMessage, ChatRole };
-        use futures::StreamExt;
-
-        let request_body = ChatRequestBody::builder()
-            .messages(
-                vec![ChatMessage {
-                    role: ChatRole::User,
-                    content: "What is Rust?".to_string(),
-                }]
-            )
-            .temperature(0.0)
-            .build();
-
-        // Convert to a map
-        let mut request_body = serde_json::to_value(request_body)?.as_object().unwrap().to_owned();
-
-        // Set stream to true
-        request_body.insert("stream".to_string(), serde_json::json!(true));
-
-        let response = Client::builder()
-            .timeout(Duration::from_secs(60))
-            .build()?
-            .post("https://api.openai.com/v1/chat/completions")
-            .header("Authorization", format!("Bearer {}", OPENAI_API_KEY.as_str()))
-            .json(&request_body)
-            .send().await?;
-
-        let mut strean = response.bytes_stream();
-
-        while let Some(chunk) = strean.next().await {
             println!("{:#?}", chunk);
         }
 

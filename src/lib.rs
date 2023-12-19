@@ -1,15 +1,7 @@
-use std::path::PathBuf;
-use lazy_static::lazy_static;
-use tracing::info;
+mod logging;
+pub use logging::init_logger;
 
-lazy_static! {
-    pub static ref DOTENV_FILEPATH: Option<PathBuf> = {
-        info!("Loading dotenv");
-        dotenv::dotenv().ok()
-    };
-}
-
-mod auth;
-pub use auth::OPENAI_API_KEY;
+mod client;
+pub use client::{ OpenAIClient, OpenAIClientBuilder };
 
 pub mod chat;
