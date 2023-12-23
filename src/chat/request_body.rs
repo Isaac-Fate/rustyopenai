@@ -1,3 +1,4 @@
+use anyhow::{ Result, anyhow };
 use serde::Serialize;
 use serde_with::skip_serializing_none;
 use super::ChatMessage;
@@ -5,8 +6,9 @@ use super::ChatMessage;
 #[skip_serializing_none]
 #[derive(Debug, Serialize)]
 pub struct ChatRequestBody {
-    pub model: String,
     pub messages: Vec<ChatMessage>,
+    pub model: String,
+    pub logprobs: bool,
     pub temperature: f32,
     pub top_p: f32,
     pub presence_penalty: f32,
@@ -17,6 +19,7 @@ impl ChatRequestBody {
     pub fn new(
         model: &str,
         messages: Vec<ChatMessage>,
+        logprobs: bool,
         temperature: f32,
         top_p: f32,
         presence_penalty: f32,
@@ -25,6 +28,7 @@ impl ChatRequestBody {
         Self {
             model: model.to_string(),
             messages,
+            logprobs,
             temperature,
             top_p,
             presence_penalty,
@@ -38,8 +42,9 @@ impl ChatRequestBody {
 }
 
 pub struct ChatRequestBodyBuilder {
-    model: String,
-    messages: Vec<ChatMessage>,
+    model: Option<String>,
+    messages: Option<Vec<ChatMessage>>,
+    logprobs: bool,
     temperature: f32,
     top_p: f32,
     presence_penalty: f32,
@@ -49,8 +54,9 @@ pub struct ChatRequestBodyBuilder {
 impl ChatRequestBodyBuilder {
     pub fn new() -> Self {
         Self {
-            model: "gpt-3.5-turbo".to_string(),
-            messages: vec![],
+            model: None,
+            messages: None,
+            logprobs: false,
             temperature: 0.0,
             top_p: 0.0,
             presence_penalty: 0.0,
@@ -60,13 +66,19 @@ impl ChatRequestBodyBuilder {
 
     /// Set model name.
     pub fn model(mut self, model: &str) -> Self {
-        self.model = model.to_string();
+        self.model = Some(model.to_string());
         self
     }
 
     /// Set messages.
     pub fn messages(mut self, messages: Vec<ChatMessage>) -> Self {
-        self.messages = messages;
+        self.messages = Some(messages);
+        self
+    }
+
+    /// Set logprobs.
+    pub fn logprobs(mut self, logprobs: bool) -> Self {
+        self.logprobs = logprobs;
         self
     }
 
@@ -94,14 +106,15 @@ impl ChatRequestBodyBuilder {
         self
     }
 
-    pub fn build(self) -> ChatRequestBody {
-        ChatRequestBody {
-            model: self.model,
-            messages: self.messages,
+    pub fn build(self) -> Result<ChatRequestBody> {
+        Ok(ChatRequestBody {
+            model: self.model.ok_or(anyhow!("'model' must be set"))?,
+            messages: self.messages.ok_or(anyhow!("'messages' must be set"))?,
+            logprobs: self.logprobs,
             temperature: self.temperature,
             top_p: self.top_p,
             presence_penalty: self.presence_penalty,
             user_id: self.user_id,
-        }
+        })
     }
 }

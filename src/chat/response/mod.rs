@@ -1,6 +1,3 @@
-mod response;
-pub use response::OpenAIChatResponse;
-
 mod completion;
 pub use completion::ChatCompletion;
 

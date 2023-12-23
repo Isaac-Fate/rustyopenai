@@ -5,9 +5,10 @@ use super::{ super::ChatMessage, ChatTokenUsage };
 pub struct ChatCompletion {
     pub id: String,
     pub choices: Vec<ChatCompletionChoice>,
-    pub object: String,
     pub created: i64,
     pub model: String,
+    pub system_fingerprint: Option<String>,
+    pub object: String,
     pub usage: ChatTokenUsage,
 }
 

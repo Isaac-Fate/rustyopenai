@@ -75,6 +75,7 @@ mod tests {
         let response = get_complete_chat_response(
             &OpenAIClient::builder().timeout(Duration::from_secs(60)).build()?,
             &ChatRequestBody::builder()
+                .model("gpt-3.5-turbo")
                 .messages(
                     vec![ChatMessage {
                         role: ChatRole::User,
@@ -82,7 +83,7 @@ mod tests {
                     }]
                 )
                 .temperature(0.9)
-                .build()
+                .build()?
         ).await;
 
         println!("{:#?}", response);
@@ -99,14 +100,16 @@ mod tests {
         let mut stream = get_streamed_chat_response(
             &OpenAIClient::builder().timeout(Duration::from_secs(60)).build()?,
             &ChatRequestBody::builder()
+                .model("gpt-3.5-turbo")
                 .messages(
                     vec![ChatMessage {
                         role: ChatRole::User,
                         content: "What is Rust?".to_string(),
                     }]
                 )
+                .logprobs(true)
                 .temperature(0.0)
-                .build()
+                .build()?
         ).await?;
 
         while let Some(chunk) = stream.next().await {
