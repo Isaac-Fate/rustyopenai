@@ -4,8 +4,8 @@ pub use message::{ ChatMessage, ChatRole };
 mod response;
 pub use response::{ ChatCompletion, ChatCompletionChunk, ChatCompletionStream };
 
-mod model_names;
-pub use model_names::ChatModelName;
+mod model_name;
+pub use model_name::ChatModelName;
 
 mod request_body;
 pub use request_body::ChatRequestBody;
