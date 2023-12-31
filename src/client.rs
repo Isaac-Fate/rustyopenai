@@ -1,8 +1,8 @@
 use std::{ path::PathBuf, time::Duration };
-use anyhow::{ Result, anyhow };
 use reqwest::{ Client, ClientBuilder, IntoUrl, RequestBuilder };
 use lazy_static::lazy_static;
 use tracing::{ info, warn };
+use crate::{ OpenAIResult, OpenAIError };
 
 lazy_static! {
     /// The path to the dotenv file.
@@ -74,12 +74,12 @@ impl OpenAIClientBuilder {
     }
 
     /// Build the OpenAI client.
-    pub fn build(self) -> Result<OpenAIClient> {
+    pub fn build(self) -> OpenAIResult<OpenAIClient> {
         // Get the API key
         // If the API key is not set, try to get it from the environment variable
         let api_key = self.api_key
             .or(OPENAI_API_KEY.as_ref().map(|s| s.to_string()))
-            .ok_or(anyhow!("API key not found"))?;
+            .ok_or(OpenAIError::APIKeyNotSet)?;
 
         Ok(OpenAIClient {
             api_key,

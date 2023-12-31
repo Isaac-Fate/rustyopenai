@@ -1,13 +1,15 @@
-use anyhow::anyhow;
 use serde::Deserialize;
 
 /// A macro to create an error enum with variants that have a message field.
 macro_rules! create_openai_error {
-    ($error:ident; $($variant:ident),* $(,)?) => {
+    ($($simple_error:ident),* $(,)?; $($error_with_message:ident),* $(,)?) => {
         #[derive(Debug)]
-        pub enum $error {
+        pub enum OpenAIError {
             $(
-                $variant {
+                $simple_error,
+            )*
+            $(
+                $error_with_message {
                     message: String,
                 }
             ),*
@@ -17,48 +19,78 @@ macro_rules! create_openai_error {
 
 // Create OpenAIError enum
 create_openai_error! {
-    OpenAIError;
+    APIKeyNotSet,
+    MessagesNotSet,
+    ModelNotSet,
+    ;
     Authentication,
     BadRequest,
+    BuildClient,
+    ModelNotFound,
+    TimedOut,
+    Other,
 }
 
 impl std::fmt::Display for OpenAIError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            OpenAIError::Authentication { message } =>
-                write!(f, "Authentication error: {}", message),
-            OpenAIError::BadRequest { message } => write!(f, "Bad request: {}", message),
+            OpenAIError::APIKeyNotSet => write!(f, "API key is not set"),
+            OpenAIError::MessagesNotSet => write!(f, "`messages` must be set"),
+            OpenAIError::ModelNotSet => write!(f, "`model` must be set"),
+            OpenAIError::Authentication { message } => write!(f, "Authentication: {}", message),
+            OpenAIError::BadRequest { message } => write!(f, "Bad Request: {}", message),
+            OpenAIError::BuildClient { message } => write!(f, "Build Client: {}", message),
+            OpenAIError::ModelNotFound { message } => write!(f, "Model Not Found: {}", message),
+            OpenAIError::TimedOut { message } => write!(f, "Timed Out: {}", message),
+            OpenAIError::Other { message } => write!(f, "Other: {}", message),
         }
     }
 }
 
 impl std::error::Error for OpenAIError {}
 
-impl TryFrom<RawOpenAIError> for OpenAIError {
-    type Error = anyhow::Error;
+impl From<reqwest::Error> for OpenAIError {
+    fn from(error: reqwest::Error) -> Self {
+        if error.is_body() {
+            OpenAIError::BadRequest { message: error.to_string() }
+        } else if error.is_builder() {
+            OpenAIError::BuildClient { message: error.to_string() }
+        } else if error.is_timeout() {
+            OpenAIError::TimedOut { message: error.to_string() }
+        } else {
+            OpenAIError::Other { message: error.to_string() }
+        }
+    }
+}
 
-    fn try_from(raw_openai_error: RawOpenAIError) -> Result<Self, Self::Error> {
-        if let Some(error_code) = raw_openai_error.detail.code {
+impl From<OpenAIErrorResponse> for OpenAIError {
+    fn from(error_response: OpenAIErrorResponse) -> Self {
+        if let Some(error_code) = error_response.detail.code {
             match error_code.as_str() {
                 "invalid_api_key" =>
-                    Ok(OpenAIError::Authentication { message: raw_openai_error.detail.message }),
-                _ => Err(anyhow!("Unknown error code: {}", error_code)),
+                    OpenAIError::Authentication { message: error_response.detail.message },
+                "model_not_found" =>
+                    OpenAIError::ModelNotFound { message: error_response.detail.message },
+                _ =>
+                    OpenAIError::Other {
+                        message: format!("Unknown error code: {}", error_code),
+                    },
             }
         } else {
-            Ok(OpenAIError::BadRequest { message: raw_openai_error.detail.message })
+            OpenAIError::BadRequest { message: error_response.detail.message }
         }
     }
 }
 
 #[derive(Debug, Deserialize)]
-pub struct RawOpenAIError {
+pub struct OpenAIErrorResponse {
     #[serde(rename = "error")]
-    detail: RawOpenAIErrorDetail,
+    detail: OpenAIErrorResponseDetail,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
-pub struct RawOpenAIErrorDetail {
+pub struct OpenAIErrorResponseDetail {
     code: Option<String>,
     message: String,
 

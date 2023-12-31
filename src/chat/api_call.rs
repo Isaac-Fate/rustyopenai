@@ -1,21 +1,19 @@
-use anyhow::{ Result, anyhow };
 use futures::Stream;
-use crate::error::{ OpenAIError, RawOpenAIError };
-use super::{
-    super::OpenAIClient,
-    ChatRequestBody,
-    ChatCompletion,
-    ChatCompletionChunk,
-    ChatCompletionStream,
-};
+use crate::{ OpenAIResult, OpenAIError, error::OpenAIErrorResponse, OpenAIClient };
+use super::{ ChatRequestBody, ChatCompletion, ChatCompletionChunk, ChatCompletionStream };
 
 /// Call OpenAI chat API and return a complete chat response.
 pub async fn get_complete_chat_response(
     client: &OpenAIClient,
     request_body: &ChatRequestBody
-) -> Result<ChatCompletion> {
+) -> OpenAIResult<ChatCompletion> {
     // Convert to a map
-    let mut request_body = serde_json::to_value(request_body)?.as_object().unwrap().to_owned();
+    let mut request_body = serde_json
+        ::to_value(request_body)
+        .unwrap()
+        .as_object()
+        .unwrap()
+        .to_owned();
 
     // Set the key "stream" to false
     request_body.insert("stream".to_string(), serde_json::json!(false));
@@ -30,7 +28,8 @@ pub async fn get_complete_chat_response(
     let response = match response {
         Ok(response) => response,
         Err(error) => {
-            return Err(anyhow!(error));
+            // Construct an OpenAIError from the reqwest::Error
+            return Err(OpenAIError::from(error));
         }
     };
 
@@ -43,11 +42,13 @@ pub async fn get_complete_chat_response(
     if let Ok(response) = serde_json::from_str::<ChatCompletion>(&response_content) {
         Ok(response)
     } else {
-        let raw_openai_error = serde_json::from_str::<RawOpenAIError>(&response_content)?;
-        if let Ok(openai_error) = OpenAIError::try_from(raw_openai_error) {
-            Err(anyhow!(openai_error))
+        let error_response = serde_json
+            ::from_str::<OpenAIErrorResponse>(&response_content)
+            .unwrap();
+        if let Ok(openai_error) = OpenAIError::try_from(error_response) {
+            Err(openai_error)
         } else {
-            Err(anyhow!(serde_json::from_str::<serde_json::Value>(&response_content)?))
+            Err(OpenAIError::Other { message: response_content })
         }
     }
 }
@@ -55,9 +56,14 @@ pub async fn get_complete_chat_response(
 pub async fn get_streamed_chat_response(
     client: &OpenAIClient,
     request_body: &ChatRequestBody
-) -> Result<impl Stream<Item = ChatCompletionChunk>> {
+) -> OpenAIResult<impl Stream<Item = OpenAIResult<ChatCompletionChunk>>> {
     // Convert to a map
-    let mut request_body = serde_json::to_value(request_body)?.as_object().unwrap().to_owned();
+    let mut request_body = serde_json
+        ::to_value(request_body)
+        .unwrap()
+        .as_object()
+        .unwrap()
+        .to_owned();
 
     // Set the key "stream" to true
     request_body.insert("stream".to_string(), serde_json::json!(true));
@@ -69,19 +75,24 @@ pub async fn get_streamed_chat_response(
         .send().await?;
 
     // Create ChatResponseStream from the response bytes stream
-    Ok(ChatCompletionStream::new(response.bytes_stream()))
+    Ok(ChatCompletionStream::new(response))
 }
 
 #[cfg(test)]
 mod tests {
     use std::time::Duration;
-    use anyhow::Result;
     use futures::StreamExt;
-    use crate::{ init_logger, chat::{ ChatMessage, ChatRole, ChatRequestBody }, OpenAIClient };
+    use crate::{
+        init_logger,
+        OpenAIResult,
+        OpenAIError,
+        chat::{ ChatMessage, ChatRole, ChatRequestBody },
+        OpenAIClient,
+    };
     use super::{ get_complete_chat_response, get_streamed_chat_response };
 
     #[tokio::test]
-    async fn authentication_error() -> Result<()> {
+    async fn authentication_error() -> OpenAIResult<()> {
         // Initialize logger
         init_logger();
 
@@ -103,15 +114,23 @@ mod tests {
                 .build()?
         ).await;
 
+        // Assert that the response is an error
         assert!(response.is_err());
 
-        println!("{:#?}", response);
+        // Unwrap the error
+        let error = response.unwrap_err();
+
+        // Assert that the error is Authentication
+        assert!(matches!(error, OpenAIError::Authentication { .. }));
+
+        // Print the error
+        println!("{}", error);
 
         Ok(())
     }
 
     #[tokio::test]
-    async fn test_get_complete_chat_response() -> Result<()> {
+    async fn bad_request_error() -> Result<(), OpenAIError> {
         // Initialize logger
         init_logger();
 
@@ -126,23 +145,131 @@ mod tests {
                         content: "What is Rust?".to_string(),
                     }]
                 )
-                .temperature(0.0)
+
+                // Temperature must be between 0.0 and 1.0
+                .temperature(-1.0)
+
                 .build()?
         ).await;
 
-        println!("{:#?}", response);
+        // Assert that the response is an error
+        assert!(response.is_err());
+
+        // Unwrap the error
+        let error = response.unwrap_err();
+
+        // Assert that the error is BadRequest
+        assert!(matches!(error, OpenAIError::BadRequest { .. }));
+
+        // Print the error
+        println!("{}", error);
 
         Ok(())
     }
 
     #[tokio::test]
-    async fn test_get_streamed_chat_response() -> Result<()> {
+    async fn model_not_found_error() -> Result<(), OpenAIError> {
+        // Initialize logger
+        init_logger();
+
+        // Call API to get chat response
+        let response = get_complete_chat_response(
+            &OpenAIClient::builder().timeout(Duration::from_secs(60)).build()?,
+            &ChatRequestBody::builder()
+                .model("gpt-dummy")
+                .messages(
+                    vec![ChatMessage {
+                        role: ChatRole::User,
+                        content: "What is Rust?".to_string(),
+                    }]
+                )
+                .temperature(0.0)
+                .build()?
+        ).await;
+
+        // Assert that the response is an error
+        assert!(response.is_err());
+
+        // Unwrap the error
+        let error = response.unwrap_err();
+
+        // Assert that the error is ModelNotFound
+        assert!(matches!(error, OpenAIError::ModelNotFound { .. }));
+
+        // Print the error
+        println!("{}", error);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn timed_out_error() -> Result<(), OpenAIError> {
+        // Initialize logger
+        init_logger();
+
+        // Call API to get chat response
+        let response = get_complete_chat_response(
+            &OpenAIClient::builder().timeout(Duration::from_secs(1)).build()?,
+            &ChatRequestBody::builder()
+                .model("gpt-3.5-turbo")
+                .messages(
+                    vec![ChatMessage {
+                        role: ChatRole::User,
+                        content: "What is Rust?".to_string(),
+                    }]
+                )
+                .temperature(0.0)
+                .build()?
+        ).await;
+
+        // Assert that the response is an error
+        assert!(response.is_err());
+
+        // Unwrap the error
+        let error = response.unwrap_err();
+
+        // Assert that the error is TimedOut
+        assert!(matches!(error, OpenAIError::TimedOut { .. }));
+
+        // Print the error
+        println!("{}", error);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_get_complete_chat_response() -> Result<(), OpenAIError> {
+        // Initialize logger
+        init_logger();
+
+        // Call API to get chat response
+        let response = get_complete_chat_response(
+            &OpenAIClient::builder().timeout(Duration::from_secs(60)).build()?,
+            &ChatRequestBody::builder()
+                .model("gpt-3.5-turbo")
+                .messages(
+                    vec![ChatMessage {
+                        role: ChatRole::User,
+                        content: "What is Rust?".to_string(),
+                    }]
+                )
+                .temperature(0.0)
+                .build()?
+        ).await;
+
+        println!("response: {:#?}", response);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_get_streamed_chat_response() -> Result<(), OpenAIError> {
         // Initialize logger
         init_logger();
 
         // Call API to get the streamed chat response
         let mut stream = get_streamed_chat_response(
-            &OpenAIClient::builder().timeout(Duration::from_secs(3)).build()?,
+            &OpenAIClient::builder().timeout(Duration::from_secs(3)).build().unwrap(),
             &ChatRequestBody::builder()
                 .model("gpt-3.5-turbo")
                 .messages(
@@ -153,8 +280,9 @@ mod tests {
                 )
                 .logprobs(false)
                 .temperature(0.0)
-                .build()?
-        ).await?;
+                .build()
+                .unwrap()
+        ).await.unwrap();
 
         while let Some(chunk) = stream.next().await {
             println!("{:#?}", chunk);

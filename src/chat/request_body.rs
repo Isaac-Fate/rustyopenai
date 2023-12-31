@@ -1,9 +1,8 @@
-use anyhow::{ Result, anyhow };
 use serde::Serialize;
-use serde_with::skip_serializing_none;
+use crate::{ OpenAIResult, OpenAIError };
 use super::ChatMessage;
 
-#[skip_serializing_none]
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize)]
 pub struct ChatRequestBody {
     pub messages: Vec<ChatMessage>,
@@ -106,10 +105,11 @@ impl ChatRequestBodyBuilder {
         self
     }
 
-    pub fn build(self) -> Result<ChatRequestBody> {
+    /// Build `ChatRequestBody`.
+    pub fn build(self) -> OpenAIResult<ChatRequestBody> {
         Ok(ChatRequestBody {
-            model: self.model.ok_or(anyhow!("'model' must be set"))?,
-            messages: self.messages.ok_or(anyhow!("'messages' must be set"))?,
+            model: self.model.ok_or(OpenAIError::ModelNotSet)?,
+            messages: self.messages.ok_or(OpenAIError::MessagesNotSet)?,
             logprobs: self.logprobs,
             temperature: self.temperature,
             top_p: self.top_p,
