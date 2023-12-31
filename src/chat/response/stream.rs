@@ -10,7 +10,9 @@ lazy_static! {
     static ref STREAM_RESPONSE_CHUNK_RE: Regex = Regex::new(r"^data: \{.*\}\n\n").unwrap();
     static ref STREAM_RESPONSE_TERMINATION_CHUNK_RE: Regex =
         Regex::new(r"^data: \[DONE\]\n\n").unwrap();
-    static ref ERROR_RESPONSE_RE: Regex = Regex::new(r"^error: \{.*\}\n\n").unwrap();
+    static ref ERROR_RESPONSE_RE: Regex = Regex::new(
+        r#"^\{\n  \"error\": \{\n.+\n.+\n.+\n.+\n.+\n\}\n"#
+    ).unwrap();
 }
 
 pub struct ChatCompletionStream {
@@ -31,6 +33,8 @@ impl ChatCompletionStream {
     }
 }
 
+/// Extract the first chunk from the content,
+/// and return the chunk and the remaining content.
 fn extract_first_chunk<S: AsRef<str>>(
     content: S
 ) -> (Option<OpenAIResult<ChatCompletionChunk>>, Option<String>) {
@@ -66,13 +70,6 @@ fn extract_first_chunk<S: AsRef<str>>(
 
         // Get the error content
         let error_content = error_match.as_str();
-
-        // Strip the prefix "error: " and the suffix "\n\n"
-        let error_content = error_content
-            .strip_prefix("error: ")
-            .unwrap()
-            .strip_suffix("\n\n")
-            .unwrap();
 
         // Parse the error content
         let error_response = serde_json::from_str::<OpenAIErrorResponse>(error_content).unwrap();
@@ -173,7 +170,7 @@ mod tests {
     use super::ChatCompletionStream;
 
     #[tokio::test]
-    async fn handle_stream() -> OpenAIResult<()> {
+    async fn get_streamed_chat_response() -> OpenAIResult<()> {
         // Initialize logger
         init_logger();
 
@@ -185,7 +182,7 @@ mod tests {
                     .messages(
                         vec![ChatMessage {
                             role: ChatRole::User,
-                            content: "What is Rust?".to_string(),
+                            content: r"What is Rust?".to_string(),
                         }]
                     )
                     .temperature(0.0)
@@ -210,7 +207,8 @@ mod tests {
         // Get the response bytes stream
         // let response_bytes_stream = resposne?.bytes_stream();
         let mut stream = ChatCompletionStream::new(response);
-        // let chunk = stream.next().await;
+
+        // Print all the chunks
         while let Some(chunk) = stream.next().await {
             match chunk {
                 Ok(chunk) => {
