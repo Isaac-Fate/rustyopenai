@@ -20,7 +20,8 @@ macro_rules! create_openai_error {
 // Create OpenAIError enum
 create_openai_error! {
     APIKeyNotSet,
-    MessagesNotSet,
+    EmbeddingInputNotSet,
+    ChatMessagesNotSet,
     ModelNotSet,
     ;
     Authentication,
@@ -35,8 +36,11 @@ impl std::fmt::Display for OpenAIError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             OpenAIError::APIKeyNotSet => write!(f, "API key is not set"),
-            OpenAIError::MessagesNotSet => write!(f, "`messages` must be set"),
-            OpenAIError::ModelNotSet => write!(f, "`model` must be set"),
+            OpenAIError::EmbeddingInputNotSet =>
+                write!(f, "`input` must be set when calling embeddings API"),
+            OpenAIError::ChatMessagesNotSet =>
+                write!(f, "`messages` must be set when calling chat API"),
+            OpenAIError::ModelNotSet => write!(f, "`model` must be set when calling API"),
             OpenAIError::Authentication { message } => write!(f, "Authentication: {}", message),
             OpenAIError::BadRequest { message } => write!(f, "Bad Request: {}", message),
             OpenAIError::BuildClient { message } => write!(f, "Build Client: {}", message),

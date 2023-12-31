@@ -1,5 +1,5 @@
-use futures::{ Stream, StreamExt };
 use std::{ pin::Pin, task::{ Context, Poll } };
+use futures::{ Stream, StreamExt };
 use bytes::Bytes;
 use lazy_static::lazy_static;
 use regex::Regex;

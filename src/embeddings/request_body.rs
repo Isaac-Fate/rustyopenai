@@ -1,6 +1,6 @@
-use anyhow::{ Result, anyhow };
 use serde::Serialize;
 use serde_with::skip_serializing_none;
+use crate::{ OpenAIResult, OpenAIError };
 
 #[skip_serializing_none]
 #[derive(Debug, Serialize)]
@@ -103,10 +103,10 @@ impl EmbeddingRequestBodyBuilder {
         self
     }
 
-    pub fn build(self) -> Result<EmbeddingRequestBody> {
+    pub fn build(self) -> OpenAIResult<EmbeddingRequestBody> {
         Ok(EmbeddingRequestBody {
-            input: self.input.ok_or(anyhow!("'input' is required"))?,
-            model: self.model.ok_or(anyhow!("'model' is required"))?,
+            input: self.input.ok_or(OpenAIError::EmbeddingInputNotSet)?,
+            model: self.model.ok_or(OpenAIError::ModelNotSet)?,
             encoding_format: self.encoding_format,
             user: self.user,
         })

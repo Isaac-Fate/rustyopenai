@@ -109,7 +109,7 @@ impl ChatRequestBodyBuilder {
     pub fn build(self) -> OpenAIResult<ChatRequestBody> {
         Ok(ChatRequestBody {
             model: self.model.ok_or(OpenAIError::ModelNotSet)?,
-            messages: self.messages.ok_or(OpenAIError::MessagesNotSet)?,
+            messages: self.messages.ok_or(OpenAIError::ChatMessagesNotSet)?,
             logprobs: self.logprobs,
             temperature: self.temperature,
             top_p: self.top_p,

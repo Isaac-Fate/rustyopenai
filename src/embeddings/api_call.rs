@@ -1,11 +1,10 @@
-use anyhow::Result;
-use crate::client::OpenAIClient;
+use crate::{ OpenAIResult, OpenAIClient };
 use super::{ EmbeddingRequestBody, EmbeddingReponse };
 
 pub async fn get_embedding(
     client: &OpenAIClient,
     request_body: EmbeddingRequestBody
-) -> Result<EmbeddingReponse> {
+) -> OpenAIResult<EmbeddingReponse> {
     Ok(
         client
             .post("https://api.openai.com/v1/embeddings")
@@ -18,16 +17,16 @@ pub async fn get_embedding(
 #[cfg(test)]
 mod tests {
     use std::time::Duration;
-    use anyhow::Result;
     use serde_json::{ json, Value };
     use crate::{
+        OpenAIResult,
         OpenAIClient,
         embeddings::{ EmbeddingRequestBody, EmbeddingEncodingFormat, EmbeddingContent },
     };
     use super::get_embedding;
 
     #[tokio::test]
-    async fn call_api_using_json_body() -> Result<()> {
+    async fn call_api_using_json_body() -> OpenAIResult<()> {
         let json_response = OpenAIClient::builder()
             .timeout(Duration::from_secs(10))
             .build()?
@@ -52,7 +51,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn get_embedding_of_single_text() -> Result<()> {
+    async fn get_embedding_of_single_text() -> OpenAIResult<()> {
         let response = get_embedding(
             &OpenAIClient::builder().timeout(Duration::from_secs(10)).build()?,
             EmbeddingRequestBody::builder()
@@ -67,7 +66,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn get_embeddings_of_multiple_texts() -> Result<()> {
+    async fn get_embeddings_of_multiple_texts() -> OpenAIResult<()> {
         let response = get_embedding(
             &OpenAIClient::builder().timeout(Duration::from_secs(10)).build()?,
             EmbeddingRequestBody::builder()
@@ -82,7 +81,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn get_base64_embedding() -> Result<()> {
+    async fn get_base64_embedding() -> OpenAIResult<()> {
         let response = get_embedding(
             &OpenAIClient::builder().timeout(Duration::from_secs(10)).build()?,
             EmbeddingRequestBody::builder()
