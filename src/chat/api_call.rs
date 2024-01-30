@@ -263,7 +263,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_get_streamed_chat_response() -> Result<(), OpenAIError> {
+    async fn test_get_streamed_chat_response() -> OpenAIResult<()> {
         // Initialize logger
         init_logger();
 
@@ -284,8 +284,20 @@ mod tests {
                 .unwrap()
         ).await.unwrap();
 
+        // while let Some(chunk) = stream.next().await {
+        //     println!("{:#?}", chunk);
+        // }
+
+        // Print all the chunks
         while let Some(chunk) = stream.next().await {
-            println!("{:#?}", chunk);
+            match chunk {
+                Ok(chunk) => {
+                    println!("{:#?}", chunk.choices.first().unwrap().delta.content);
+                }
+                Err(error) => {
+                    println!("{:#?}", error);
+                }
+            }
         }
 
         Ok(())

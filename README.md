@@ -2,3 +2,6 @@
 
 A Rust crate for interfacing with the OpenAI API.
 
+## Chat
+
+## Embeddings

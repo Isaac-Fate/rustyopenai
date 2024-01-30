@@ -1,5 +1,8 @@
+# VS Code Settings
+.vscode
+
+# Built executable files
 /target
 
 # Ignore the .env file which contains sensitive API keys and passwords
 /.env
-
