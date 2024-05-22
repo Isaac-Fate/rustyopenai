@@ -1,12 +1,9 @@
-mod logging;
-pub use logging::init_logger;
-
 mod client;
 pub use client::{ OpenAIClient, OpenAIClientBuilder };
 
 mod error;
-pub use error::OpenAIError;
-pub type OpenAIResult<T> = Result<T, OpenAIError>;
+pub use error::{ Result, Error };
 
+pub mod models;
 pub mod chat;
 pub mod embeddings;
