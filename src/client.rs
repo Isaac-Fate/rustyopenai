@@ -5,8 +5,14 @@ use log::*;
 use crate::{ Result, Error };
 
 lazy_static! {
-    /// The path to the dotenv file.
-    pub static ref DOTENV_FILEPATH: Option<PathBuf> = {
+    /// The OpenAI API key.
+    pub static ref OPENAI_API_KEY: Option<String> = {
+        let _ = DOTENV_FILE_PATH.as_ref();
+        dotenv::var("OPENAI_API_KEY").ok()
+    };
+
+    /// The path to the .env file.
+    static ref DOTENV_FILE_PATH: Option<PathBuf> = {
         match dotenv::dotenv().ok() {
             Some(path) => {
                 info!("loaded environment variables from {:?}", path);
@@ -18,26 +24,39 @@ lazy_static! {
             }
         }
     };
-
-    /// The OpenAI API key.
-    pub static ref OPENAI_API_KEY: Option<String> = {
-        let _ = DOTENV_FILEPATH.as_ref();
-        dotenv::var("OPENAI_API_KEY").ok()
-    };
 }
 
+/// The OpenAI client.
+/// It is a simple wrapper around the `reqwest` HTTP client
+/// with the authorization when building requests.
 pub struct OpenAIClient {
     api_key: String,
     http_client: Client,
 }
 
 impl OpenAIClient {
+    /// Creates a new client with default settings.
+    pub fn new() -> Result<Self> {
+        Self::builder().build()
+    }
+
     /// Creates a builder for OpenAIClient.
     pub fn builder() -> OpenAIClientBuilder {
         OpenAIClientBuilder::new()
     }
 
+    /// Creates a GET request builder.
+    /// Authorization header will be set with the API key.
+    pub fn get<U: IntoUrl>(&self, url: U) -> RequestBuilder {
+        self.http_client
+            .get(url)
+
+            // Set the authorization header
+            .bearer_auth(self.api_key.as_str())
+    }
+
     /// Creates a POST request builder.
+    /// Authorization header will be set with the API key.
     pub fn post<U: IntoUrl>(&self, url: U) -> RequestBuilder {
         self.http_client
             .post(url)
@@ -68,7 +87,7 @@ impl OpenAIClientBuilder {
         self
     }
 
-    /// Sets the timeout.
+    /// Sets the request timeout.
     pub fn timeout(mut self, timeout: Duration) -> Self {
         self.http_client_builder = self.http_client_builder.timeout(timeout);
         self
@@ -77,9 +96,9 @@ impl OpenAIClientBuilder {
     /// Builds the OpenAI client.
     pub fn build(self) -> Result<OpenAIClient> {
         // Get the API key
-        // If the API key is not set, try to get it from the environment variable
+        // If the API key is not set, try to get it from the environment variables
         let api_key = self.api_key
-            .or(OPENAI_API_KEY.as_ref().map(|s| s.to_string()))
+            .or(OPENAI_API_KEY.as_ref().map(|api_key| api_key.to_string()))
             .ok_or(Error::ApiKeyNotSet)?;
 
         // Build an HTTP client
@@ -124,12 +143,11 @@ mod tests {
     }
 
     #[test]
-    fn test_build() {
+    fn test_build_openai_client() {
         // Initialize a logger
         init_logger();
 
         let client = OpenAIClientBuilder::new().build();
-
         assert!(client.is_ok());
     }
 }
