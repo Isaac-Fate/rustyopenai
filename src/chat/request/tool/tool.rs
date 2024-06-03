@@ -11,7 +11,7 @@ impl Serialize for Tool {
         match self {
             Tool::Function(function) => {
                 // Initialize the map
-                let mut map = serializer.serialize_map(Some(1))?;
+                let mut map = serializer.serialize_map(Some(2))?;
 
                 // Add an additional type field
                 map.serialize_entry("type", "function")?;
@@ -19,6 +19,7 @@ impl Serialize for Tool {
                 // Serialize the function
                 map.serialize_entry("function", function)?;
 
+                // End serializing
                 map.end()
             }
         }

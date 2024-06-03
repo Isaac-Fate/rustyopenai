@@ -1,15 +1,10 @@
-use crate::{ Result, Error, ChatApiError, OpenAIClient };
-use super::{
-    CHAT_COMPLETION_API_ENDPOINT,
-    ChatCompletionResponse,
-    ChatRequestBody,
-    message::ChatRequestMessage,
-};
+use crate::{ Result, Error, OpenAIClient };
+use super::{ CHAT_COMPLETION_API_ENDPOINT, ChatRequestBody, ChatCompletion };
 
 pub async fn create_chat_completion(
     client: &OpenAIClient,
     request_body: &ChatRequestBody
-) -> Result<ChatCompletionResponse> {
+) -> Result<ChatCompletion> {
     // Send the request
     let response = match client.post(CHAT_COMPLETION_API_ENDPOINT).json(request_body).send().await {
         Ok(response) =>
@@ -24,15 +19,11 @@ pub async fn create_chat_completion(
         }
     };
 
-    // let response = response.json::<serde_json::Value>().await.unwrap();
-    // println!("{:#?}", response);
-
-    // let response = serde_json::from_value::<ChatCompletionResponse>(response).unwrap();
-
-    let response = match response.json::<ChatCompletionResponse>().await {
+    // Parse the response
+    let response = match response.json::<ChatCompletion>().await {
         Ok(response) => response,
         Err(error) => {
-            return Err(Error::PraseToListModelsResponse { source: error });
+            return Err(Error::ParseToChatCompletion { source: error });
         }
     };
 
@@ -42,6 +33,7 @@ pub async fn create_chat_completion(
 #[cfg(test)]
 mod tests {
     use serde_json::json;
+    use crate::prelude::*;
     use crate::utils::init_test_logger;
     use crate::chat::{
         UserMessage,
@@ -50,7 +42,6 @@ mod tests {
         FunctionParameter,
         ToolChoice,
         ToolChoiceOption,
-        ToolChoiceParticularFunction,
     };
     use super::*;
 
@@ -65,7 +56,7 @@ mod tests {
         // Prepare request body
         let request_body = ChatRequestBody::builder(
             "gpt-3.5-turbo",
-            vec![ChatRequestMessage::User(UserMessage::new("What is the breaking news today?"))]
+            vec![user_message!("What is the breaking news today?")]
         )
             .tools(
                 vec![
@@ -73,24 +64,16 @@ mod tests {
                         Function::builder("search_on_web")
                             .description("Search for information based on a query.")
                             .parameters(
-                                vec![
-                                    FunctionParameter::new(
-                                        "query",
-                                        true,
-                                        json!({"type": "string", "description": "The query to search for."})
-                                    ),
-                                    FunctionParameter::new(
-                                        "browser",
-                                        true,
-                                        json!({"type": "string", "enum": ["chrome", "firefox"], "description": "The browser to use."})
-                                    )
-                                ]
+                                function_parameters! {
+                                    "query": json!({"type": "string", "description": "The query to search for."});
+                                    "browser": json!({"type": "string", "enum": ["chrome", "firefox"], "description": "The browser to use."})
+                                }
                             )
                             .build()
                     )
                 ]
             )
-            .tool_choice(ToolChoice::Option(ToolChoiceOption::Auto))
+            .tool_choice(tool_choice!(auto))
             .build();
 
         println!("{:#?}", serde_json::to_value(&request_body));

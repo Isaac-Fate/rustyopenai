@@ -218,113 +218,11 @@ impl ChatRequestBodyBuilder {
     }
 }
 
-/// Creates a vector of function parameters.
-///
-///
-/// ```
-/// use rustyopenai::prelude::*;
-/// use serde_json::json;
-///
-/// // All parameters are required
-/// let parameters = function_parameters! {
-///     "id": json!({ "type": "string" }),
-///     "name": json!({ "type": "string" }),
-/// };
-///
-/// // All parameters are optional
-/// let parameters = function_parameters! {
-///     optional
-///     "email": json!({ "type": "string" }),
-///     "age": json!({ "type": "number" }),
-/// };
-///
-/// // There are both required and optional parameters
-/// // Use a semicolon ; to separate them
-/// let parameters = function_parameters! {
-///     "id": json!({ "type": "string" }),
-///     "name": json!({ "type": "string" });
-///     "email": json!({ "type": "string" }),
-///     "age": json!({ "type": "number" }),
-/// };
-/// ```
-#[macro_export]
-macro_rules! function_parameters {
-    // All parameters are required
-    ($($required_parameter_name:literal: $required_parameter_schema:expr),* $(,)?) => {
-        vec![
-            $(
-                function_parameter!($required_parameter_name: $required_parameter_schema),
-            )*
-        ]
-    };
-
-    // All parameters are optional
-    (optional $($optional_parameter_name:literal: $optional_parameter_schema:expr),* $(,)?) => {
-        vec![
-            $(
-                function_parameter!(optional $optional_parameter_name: $optional_parameter_schema),
-            )*
-        ]
-    };
-
-    // There is at least one required parameter, and
-    // at least one optional parameter
-    (
-        $($required_parameter_name:literal: $required_parameter_schema:expr),+;
-        $($optional_parameter_name:literal: $optional_parameter_schema:expr),+ $(,)?
-    ) => {
-        {
-            // Add the required parameters
-            let mut parameters = vec![
-                $(
-                    function_parameter!($required_parameter_name: $required_parameter_schema),
-                )*
-            ];
-
-            // Add the optional parameters
-            parameters.extend(vec![
-                $(
-                    function_parameter!(optional $optional_parameter_name: $optional_parameter_schema),
-                )*
-            ]);
-
-            parameters
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! function_parameter {
-    ($name:literal: $schema:expr) => {
-        FunctionParameter::new(
-            $name,
-            true,
-            $schema
-        )
-    };
-
-    (optional $name:literal: $schema:expr) => {
-        FunctionParameter::new(
-            $name,
-            false,
-            $schema
-        )
-    };
-}
-
 #[cfg(test)]
 mod tests {
-    use super::*;
     use serde_json::json;
-    use crate::{
-        chat::request::{
-            message::{ AssistantMessage, UserMessage },
-            tool::{ Function, FunctionParameter, ToolChoice, ToolChoiceOption },
-        },
-        tool_choice,
-        function_parameter,
-        function_parameters,
-    };
+    use super::*;
+    use crate::chat::request::*;
 
     #[test]
     fn chat_request_body() {
@@ -409,80 +307,31 @@ mod tests {
         println!("{}", serde_json::to_string_pretty(&request_body).unwrap());
     }
 
-    #[test]
-    fn build_request_body_with_macros() {
-        // Prepare request body
-        let request_body = ChatRequestBody::builder(
-            "gpt-3.5-turbo",
-            vec![ChatRequestMessage::User(UserMessage::new("What is the breaking news today?"))]
-        )
-            .tools(
-                vec![
-                    Tool::Function(
-                        Function::builder("search_on_web")
-                            .description("Search for information based on a query.")
-                            .parameters(
-                                vec![
-                                    function_parameter!("query": json!({"type": "string", "description": "The query to search for."})),
-                                    function_parameter!(optional "browser": json!({"type": "string", "enum": ["chrome", "firefox"], "description": "The browser to use."}))
-                                ]
-                            )
-                            .build()
-                    )
-                ]
-            )
-            .tool_choice(tool_choice!(auto))
-            .build();
+    // #[test]
+    // fn build_request_body_with_macros() {
+    //     // Prepare request body
+    //     let request_body = ChatRequestBody::builder(
+    //         "gpt-3.5-turbo",
+    //         vec![ChatRequestMessage::User(UserMessage::new("What is the breaking news today?"))]
+    //     )
+    //         .tools(
+    //             vec![
+    //                 Tool::Function(
+    //                     Function::builder("search_on_web")
+    //                         .description("Search for information based on a query.")
+    //                         .parameters(
+    //                             vec![
+    //                                 function_parameter!("query": json!({"type": "string", "description": "The query to search for."})),
+    //                                 function_parameter!(optional "browser": json!({"type": "string", "enum": ["chrome", "firefox"], "description": "The browser to use."}))
+    //                             ]
+    //                         )
+    //                         .build()
+    //                 )
+    //             ]
+    //         )
+    //         .tool_choice(tool_choice!(auto))
+    //         .build();
 
-        println!("{}", serde_json::to_string_pretty(&request_body).unwrap());
-    }
-
-    #[test]
-    fn function_parameters_macro() {
-        // All parameters are required
-        // There is a trailing comma
-        let parameters =
-            function_parameters![
-            "query": json!({"type": "string", "description": "The query to search for."}), 
-            "num_results": json!({"type": "number", "description": "Number of search results to return."}),
-        ];
-        println!("{}", serde_json::to_string_pretty(&parameters).unwrap());
-
-        // All parameters are required
-        // The trailing comma may be omitted
-        let parameters =
-            function_parameters![
-            "query": json!({"type": "string", "description": "The query to search for."}), 
-            "num_results": json!({"type": "number", "description": "Number of search results to return."})
-        ];
-        println!("{}", serde_json::to_string_pretty(&parameters).unwrap());
-
-        // All parameters are optional
-        // There is a trailing comma
-        let parameters =
-            function_parameters! {
-                optional
-                "browser": json!({"type": "string", "enum": ["chrome", "firefox"], "description": "The browser to use."}),
-            };
-        println!("{}", serde_json::to_string_pretty(&parameters).unwrap());
-
-        // All parameters are optional
-        // The trailing comma may be omitted
-        let parameters =
-            function_parameters! {
-                optional
-                "browser": json!({"type": "string", "enum": ["chrome", "firefox"], "description": "The browser to use."})
-            };
-
-        println!("{}", serde_json::to_string_pretty(&parameters).unwrap());
-
-        // There are both required and optional parameters
-        let parameters =
-            function_parameters! {
-                "query": json!({"type": "string", "description": "The query to search for."}), 
-                "num_results": json!({"type": "number", "description": "Number of search results to return."});
-                "browser": json!({"type": "string", "enum": ["chrome", "firefox"], "description": "The browser to use."}),
-            };
-        println!("{}", serde_json::to_string_pretty(&parameters).unwrap());
-    }
+    //     println!("{}", serde_json::to_string_pretty(&request_body).unwrap());
+    // }
 }

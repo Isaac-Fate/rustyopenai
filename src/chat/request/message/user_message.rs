@@ -1,6 +1,6 @@
-use serde::{ Serialize, Serializer, ser::SerializeStruct };
+use serde::ser::{ Serialize, Serializer, SerializeStruct };
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct UserMessage {
     content: String,
     name: Option<String>,
@@ -70,8 +70,20 @@ impl UserMessageBuilder {
     }
 }
 
+#[macro_export]
+macro_rules! user_message {
+    ($content:literal) => {
+        ChatRequestMessage::User(UserMessage::builder($content).build())
+    };
+
+    ($content:literal, name = $name:literal) => {
+        ChatRequestMessage::User(UserMessage::builder($content).name($name).build())
+    };
+}
+
 #[cfg(test)]
 mod tests {
+    use crate::chat::ChatRequestMessage;
     use super::*;
 
     #[test]
@@ -81,9 +93,22 @@ mod tests {
         println!("{}", json);
         assert_eq!(json, r#"{"role":"user","content":"Hello."}"#);
 
-        let message = UserMessage::builder("Hello.").name("user A").build();
+        let message = UserMessage::builder("Hello.").name("Isaac").build();
         let json = serde_json::to_string(&message).unwrap();
         println!("{}", json);
-        assert_eq!(json, r#"{"role":"user","content":"Hello.","name":"user A"}"#);
+        assert_eq!(json, r#"{"role":"user","content":"Hello.","name":"Isaac"}"#);
+    }
+
+    #[test]
+    fn user_message_macro() {
+        assert_eq!(
+            user_message!("Hello."),
+            ChatRequestMessage::User(UserMessage::builder("Hello.").build())
+        );
+
+        assert_eq!(
+            user_message!("Hello.", name = "Isaac"),
+            ChatRequestMessage::User(UserMessage::builder("Hello.").name("Isaac").build())
+        );
     }
 }

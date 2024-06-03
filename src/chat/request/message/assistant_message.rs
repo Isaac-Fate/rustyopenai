@@ -1,7 +1,7 @@
 use serde::{ Serialize, Serializer, ser::SerializeStruct };
 use crate::chat::request::tool::ToolCall;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct AssistantMessage {
     content: Option<String>,
     name: Option<String>,
@@ -101,6 +101,21 @@ impl AssistantMessageBuilder {
     }
 }
 
+#[macro_export]
+macro_rules! assistant_message {
+    ($content:literal) => {
+        AssistantMessage::builder().content($content).build()
+    };
+
+    ($content:literal, name = $name:literal) => {
+        AssistantMessage::builder().content($content).name($name).build()
+    };
+
+    ($content:literal, tool_calls = $tool_calls:expr) => {
+        AssistantMessage::builder().content($content).tool_calls($tool_calls).build()
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -115,22 +130,50 @@ mod tests {
 
         let message = AssistantMessage::builder()
             .content("How may I help you?")
-            .name("bot A")
+            .name("Ferris")
             .build();
         let json = serde_json::to_string(&message).unwrap();
         println!("{}", json);
-        assert_eq!(json, r#"{"role":"assistant","content":"How may I help you?","name":"bot A"}"#);
+        assert_eq!(json, r#"{"role":"assistant","content":"How may I help you?","name":"Ferris"}"#);
 
         let message = AssistantMessage::builder()
             .content("How may I help you?")
-            .name("bot A")
+            .name("Ferris")
             .tool_calls(vec![ToolCall::new("tool A", ToolCallFunction::new("foo", "{\"a\":42}"))])
             .build();
         let json = serde_json::to_string(&message).unwrap();
         println!("{}", json);
         assert_eq!(
             json,
-            r#"{"role":"assistant","content":"How may I help you?","name":"bot A","tool_calls":[{"type":"function","id":"tool A","function":{"name":"foo","arguments":"{\"a\":42}"}}]}"#
+            r#"{"role":"assistant","content":"How may I help you?","name":"Ferris","tool_calls":[{"type":"function","id":"tool A","function":{"name":"foo","arguments":"{\"a\":42}"}}]}"#
+        );
+    }
+
+    #[test]
+    fn assistant_message_macro() {
+        assert_eq!(
+            assistant_message!("How may I help you?"),
+            AssistantMessage::builder().content("How may I help you?").build()
+        );
+
+        assert_eq!(
+            assistant_message!("How may I help you?", name = "Ferris"),
+            AssistantMessage::builder().content("How may I help you?").name("Ferris").build()
+        );
+
+        assert_eq!(
+            assistant_message!(
+                "How may I help you?",
+                tool_calls = vec![
+                    ToolCall::new("tool A", ToolCallFunction::new("foo", "{\"a\":42}"))
+                ]
+            ),
+            AssistantMessage::builder()
+                .content("How may I help you?")
+                .tool_calls(
+                    vec![ToolCall::new("tool A", ToolCallFunction::new("foo", "{\"a\":42}"))]
+                )
+                .build()
         );
     }
 }

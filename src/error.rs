@@ -46,6 +46,11 @@ pub enum Error {
     },
 
     #[error("failed to request the chat API: {0}")] ChatApi(ChatApiError),
+
+    #[error("failed to parse to chat completion: {source}")] ParseToChatCompletion {
+        #[source]
+        source: reqwest::Error,
+    },
 }
 
 #[derive(Debug, thiserror::Error)]

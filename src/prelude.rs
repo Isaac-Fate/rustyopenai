@@ -15,6 +15,10 @@ pub use crate::{
         ChatCompletionResponse,
         ChatCompletionChoice,
     },
+    system_message,
+    user_message,
+    assistant_message,
     function_parameter,
     function_parameters,
+    tool_choice,
 };

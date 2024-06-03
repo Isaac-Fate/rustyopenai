@@ -2,6 +2,7 @@ mod endpoint;
 use endpoint::CHAT_COMPLETION_API_ENDPOINT;
 
 mod create_chat_completion;
+pub use create_chat_completion::create_chat_completion;
 
 // mod chat_request_body;
 // pub use chat_request_body::{ ChatRequestBody, ChatRequestMessage };
@@ -29,3 +30,6 @@ pub use request::tool::{
     ToolChoiceOption,
     ToolChoiceParticularFunction,
 };
+
+mod response;
+pub use response::ChatCompletion;

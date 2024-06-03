@@ -3,7 +3,6 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize)]
 pub struct ChatCompletionResponse {
     pub id: String,
-    pub object: String,
     pub created: u32,
     pub model: String,
     /// System fingerprint may be `None`.

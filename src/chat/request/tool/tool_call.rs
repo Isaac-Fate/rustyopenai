@@ -1,12 +1,12 @@
 use serde::{ Serialize, Serializer, ser::SerializeStruct };
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct ToolCall {
     pub id: String,
     pub function: ToolCallFunction,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, PartialEq)]
 pub struct ToolCallFunction {
     pub name: String,
     pub arguments: String,

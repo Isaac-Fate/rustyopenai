@@ -1,7 +1,7 @@
 use serde::Serialize;
 use super::{ SystemMessage, UserMessage, AssistantMessage };
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, PartialEq)]
 #[serde(untagged)]
 pub enum ChatRequestMessage {
     System(SystemMessage),
