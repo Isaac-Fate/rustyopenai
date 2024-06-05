@@ -24,15 +24,20 @@ impl ChatCompletionStream {
         Self { stream: Box::pin(stream), buffer: BytesMut::new() }
     }
 
-    fn extract_first_chunk(&mut self) -> Poll<Option<Result<ChatCompletionChunk>>> {
+    fn extract_first_chunk(
+        &mut self,
+        done_receiving: bool
+    ) -> Poll<Option<Result<ChatCompletionChunk>>> {
         // Convert buffer to string
         let buffer = self.buffer.clone();
         let buffer_str = String::from_utf8_lossy(&buffer);
 
+        println!("buffer_str: {}", buffer_str);
+
         // Match a data chunk from the start of the buffer
         if let Some(captures) = DATA_CHUNK_RE.captures(&buffer_str) {
             // Get the first match
-            let data_chunk_match = captures.get(1).unwrap();
+            let data_chunk_match = captures.get(1).expect("failed to get data chunk match");
 
             // Get the matched data chunk as str
             let data_chunk = data_chunk_match.as_str();
@@ -54,6 +59,9 @@ impl ChatCompletionStream {
                 .unwrap();
 
             Poll::Ready(Some(Ok(chat_completion_chunk)))
+        } else if done_receiving {
+            // Poll::Ready(Some(Err(Error::ApiKeyNotSet)))
+            Poll::Ready(None)
         } else {
             Poll::Pending
         }
@@ -64,14 +72,22 @@ impl Stream for ChatCompletionStream {
     type Item = Result<ChatCompletionChunk>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        println!("!!! poll_next is called");
+
         match self.stream.poll_next_unpin(cx) {
             Poll::Ready(Some(Ok(bytes))) => {
                 // Add newly received bytes to the buffer
                 self.buffer.extend(&bytes);
 
-                self.extract_first_chunk()
+                println!("bytes: {:?}", bytes);
+
+                self.extract_first_chunk(false)
             }
-            Poll::Ready(Some(Err(error))) => { Poll::Ready(Some(Err(Error::ApiKeyNotSet))) }
+            Poll::Ready(Some(Err(error))) => {
+                // Poll::Ready(Some(Err(Error::ApiKeyNotSet)))
+                eprintln!("error: {}", error);
+                Poll::Ready(None)
+            }
             Poll::Ready(None) => {
                 // The buffer is empty
                 if self.buffer.is_empty() {
@@ -79,7 +95,7 @@ impl Stream for ChatCompletionStream {
                 } else {
                     // The buffer is not empty yet,
                     // which means there are still bytes to be processed
-                    self.extract_first_chunk()
+                    self.extract_first_chunk(true)
                 }
             }
             Poll::Pending => Poll::Pending,

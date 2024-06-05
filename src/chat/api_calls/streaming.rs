@@ -66,7 +66,7 @@ pub async fn create_chat_completion_stream(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use std::{ collections::HashMap, time::Duration };
     use futures::StreamExt;
     use crate::prelude::*;
     use super::*;
@@ -74,7 +74,7 @@ mod tests {
     #[tokio::test]
     async fn test_create_chat_completion_stream() -> Result<()> {
         // Create a client
-        let client = OpenAIClient::new()?;
+        let client = OpenAIClient::builder().timeout(Duration::from_millis(3000)).build()?;
 
         // Build the request body
         let request_body = ChatRequestBody::builder(
@@ -89,7 +89,7 @@ mod tests {
         let mut chat_completion_stream = create_chat_completion_stream(
             &client,
             &request_body,
-            false
+            true
         ).await?;
 
         while let Some(chunk) = chat_completion_stream.next().await {
@@ -102,7 +102,7 @@ mod tests {
     #[tokio::test]
     async fn test() -> Result<()> {
         // Create a client
-        let client = OpenAIClient::new()?;
+        let client = OpenAIClient::builder().timeout(Duration::from_millis(3000)).build()?;
 
         // Build the request body
         let request_body = ChatRequestBody::builder(
@@ -121,6 +121,14 @@ mod tests {
 
         request_body.insert("stream".to_string(), serde_json::Value::Bool(true));
 
+        // Set the `stream_options` field
+        request_body.insert(
+            "stream_options".to_string(),
+            json!({
+                "include_usage": true
+            })
+        );
+
         // Send the request
         let response = client
             .post(CHAT_COMPLETION_API_ENDPOINT)
@@ -129,20 +137,10 @@ mod tests {
             .send().await
             .unwrap();
 
-        let stream = response.bytes_stream();
+        let mut stream = response.bytes_stream();
 
-        let mut chat_completion_stream = ChatCompletionStream::new(stream);
-
-        while let Some(chunk) = chat_completion_stream.next().await {
-            print!(
-                "{}",
-                chunk
-                    .unwrap()
-                    .choices.first()
-                    .unwrap()
-                    .delta.content.clone()
-                    .unwrap_or("".to_string())
-            );
+        while let Some(chunk) = stream.next().await {
+            println!("{:#?}", chunk);
         }
 
         Ok(())
