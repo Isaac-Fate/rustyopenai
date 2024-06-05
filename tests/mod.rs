@@ -7,7 +7,6 @@ fn test_openai_client() {
     // Create a client
     let client = OpenAIClient::builder().build();
     assert!(client.is_ok());
-    let client = client.unwrap();
 }
 
 #[tokio::test]

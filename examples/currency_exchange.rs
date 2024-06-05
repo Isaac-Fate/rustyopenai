@@ -6,13 +6,13 @@ const ENDPOINT: &str =
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    for (amount, from, to) in [
+    for (amount, source, target) in [
         (100.0, CurrencyCode::EUR, CurrencyCode::CNY),
         (100.0, CurrencyCode::CNY, CurrencyCode::EUR),
         (100.0, CurrencyCode::HKD, CurrencyCode::CNY),
         (100.0, CurrencyCode::CNY, CurrencyCode::HKD),
     ] {
-        print_currency_exchange_result(amount, from, to).await?;
+        print_currency_exchange_result(amount, source, target).await?;
     }
 
     Ok(())
@@ -20,24 +20,24 @@ async fn main() -> Result<()> {
 
 async fn print_currency_exchange_result(
     amount: f64,
-    from: CurrencyCode,
-    to: CurrencyCode
+    source: CurrencyCode,
+    target: CurrencyCode
 ) -> Result<()> {
     // Convert the amount
-    let to_amount = exchange_currency(amount, from, to).await?;
+    let target_amount = exchange_currency(amount, source, target).await?;
 
     // Print the result
-    println!("{} {:?} -> {} {:?}", amount, from, to_amount, to);
+    println!("{} {:?} -> {} {:?}", amount, source, target_amount, target);
 
     Ok(())
 }
 
-async fn exchange_currency(amount: f64, from: CurrencyCode, to: CurrencyCode) -> Result<f64> {
+async fn exchange_currency(amount: f64, source: CurrencyCode, target: CurrencyCode) -> Result<f64> {
     // Get the exchange rates
-    let exchange_rates = get_currency_exchange_rates_relative_to_euro().await?;
+    let exchange_rates = get_currency_exchange_rates_relative_target_euro().await?;
 
     // Calculate the exchange rate
-    let exchange_rate = calculate_currency_exchange_rate(&exchange_rates, from, to)?;
+    let exchange_rate = calculate_currency_exchange_rate(&exchange_rates, source, target)?;
 
     // Convert the amount
     Ok(amount * exchange_rate)
@@ -45,20 +45,22 @@ async fn exchange_currency(amount: f64, from: CurrencyCode, to: CurrencyCode) ->
 
 fn calculate_currency_exchange_rate(
     exchange_rates: &HashMap<CurrencyCode, f64>,
-    from: CurrencyCode,
-    to: CurrencyCode
+    source: CurrencyCode,
+    target: CurrencyCode
 ) -> Result<f64> {
     // Get relative rates
-    let euro_2_from_currency_rate = exchange_rates
-        .get(&from)
-        .ok_or(Error::MissingCurrencyCode(from))?;
-    let euro_2_to_currency_rate = exchange_rates.get(&to).ok_or(Error::MissingCurrencyCode(to))?;
+    let euro_to_source_currency_rate = exchange_rates
+        .get(&source)
+        .ok_or(Error::MissingCurrencyCode(source))?;
+    let euro_to_target_currency_rate = exchange_rates
+        .get(&target)
+        .ok_or(Error::MissingCurrencyCode(target))?;
 
     // Calculate the exchange rate
-    Ok(euro_2_to_currency_rate / euro_2_from_currency_rate)
+    Ok(euro_to_target_currency_rate / euro_to_source_currency_rate)
 }
 
-async fn get_currency_exchange_rates_relative_to_euro() -> Result<HashMap<CurrencyCode, f64>> {
+async fn get_currency_exchange_rates_relative_target_euro() -> Result<HashMap<CurrencyCode, f64>> {
     // Create an HTTP client
     let client = reqwest::Client::new();
 
@@ -103,7 +105,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("failed to get the response from API: {source}")] GetResponse {
+    #[error("failed to get the response source API: {source}")] GetResponse {
         #[source]
         source: reqwest::Error,
     },
@@ -139,7 +141,7 @@ pub enum CurrencyCode {
     /// United State dollar.
     USD,
 
-    // There is a symbol 🐕 from the API response,
+    // There is a symbol 🐕 source the API response,
     // which I am not aware of.
     #[serde(other)]
     Unknown,

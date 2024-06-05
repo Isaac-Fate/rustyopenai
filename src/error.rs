@@ -51,6 +51,18 @@ pub enum Error {
         #[source]
         source: reqwest::Error,
     },
+
+    #[error("failed to parse the chat request body to JSON: {source}")] ChatRequestBodyToJson {
+        #[source]
+        source: serde_json::Error,
+    },
+
+    #[error(
+        "failed to parse the JSON chat request body to a hash map: {source}"
+    )] ChatRequestBodyJsonToMap {
+        #[source]
+        source: serde_json::Error,
+    },
 }
 
 #[derive(Debug, thiserror::Error)]

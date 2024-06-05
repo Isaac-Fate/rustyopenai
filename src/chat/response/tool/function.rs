@@ -1,6 +1,6 @@
 use serde::de::{ self, Deserialize, Visitor };
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ChatCompletionToolCallFunction {
     pub name: String,
     pub arguments: serde_json::Value,

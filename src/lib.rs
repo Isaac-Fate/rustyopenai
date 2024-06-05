@@ -13,3 +13,6 @@ pub mod embeddings;
 mod utils;
 
 pub mod prelude;
+
+#[macro_use]
+mod macros;

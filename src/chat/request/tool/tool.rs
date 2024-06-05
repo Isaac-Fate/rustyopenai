@@ -1,7 +1,7 @@
 use serde::{ Serialize, Serializer, ser::SerializeMap };
 use super::Function;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Tool {
     Function(Function),
 }

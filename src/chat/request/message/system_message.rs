@@ -70,17 +70,6 @@ impl SystemMessageBuilder {
     }
 }
 
-#[macro_export]
-macro_rules! system_message {
-    ($content:literal) => {
-        SystemMessage::builder($content).build()
-    };
-
-    ($content:literal, name = $name:literal) => {
-        SystemMessage::builder($content).name($name).build()
-    };
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -100,19 +89,6 @@ mod tests {
         assert_eq!(
             json,
             r#"{"role":"system","content":"Your are a helpful assistant.","name":"Ferris"}"#
-        );
-    }
-
-    #[test]
-    fn system_message_macro() {
-        assert_eq!(
-            system_message!("Your are a helpful assistant."),
-            SystemMessage::builder("Your are a helpful assistant.").build()
-        );
-
-        assert_eq!(
-            system_message!("Your are a helpful assistant.", name = "Ferris"),
-            SystemMessage::builder("Your are a helpful assistant.").name("Ferris").build()
         );
     }
 }

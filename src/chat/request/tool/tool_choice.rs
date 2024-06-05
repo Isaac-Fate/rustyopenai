@@ -26,6 +26,12 @@ pub struct ToolChoiceParticularFunction {
     name: String,
 }
 
+impl ToolChoiceParticularFunction {
+    pub fn new<S: AsRef<str>>(name: S) -> Self {
+        Self { name: name.as_ref().to_string() }
+    }
+}
+
 impl Serialize for ToolChoiceParticularFunction {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
         // Initialize a map with two entries
@@ -42,23 +48,6 @@ impl Serialize for ToolChoiceParticularFunction {
     }
 }
 
-/// Creates a ToolChoice from a string.
-/// - `"none"`, `"auto"`, and `"required"` will be used to create `ToolChoice::Option`s.
-/// - Other strings will be used as function names.
-#[macro_export]
-macro_rules! tool_choice {
-    (auto) => { ToolChoice::Option(ToolChoiceOption::Auto) };
-    (none) => { ToolChoice::Option(ToolChoiceOption::None) };
-    (required) => { ToolChoice::Option(ToolChoiceOption::Required) };
-    ($name:literal) => {
-        ToolChoice::ParticularTool(
-            ToolChoiceParticularFunction {
-                name: $name.to_string(),
-            },
-        )
-    };
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -71,21 +60,5 @@ mod tests {
         let json = serde_json::to_string(&function).unwrap();
         println!("{}", json);
         assert_eq!(json, r#"{"type":"function","function":{"name":"foo"}}"#);
-    }
-
-    #[test]
-    fn tool_choice_macro() {
-        assert_eq!(tool_choice!(none), ToolChoice::Option(ToolChoiceOption::None));
-
-        assert_eq!(tool_choice!(auto), ToolChoice::Option(ToolChoiceOption::Auto));
-
-        assert_eq!(tool_choice!(required), ToolChoice::Option(ToolChoiceOption::Required));
-
-        assert_eq!(
-            tool_choice!("foo"),
-            ToolChoice::ParticularTool(ToolChoiceParticularFunction {
-                name: "foo".to_string(),
-            })
-        )
     }
 }
