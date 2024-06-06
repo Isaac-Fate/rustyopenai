@@ -63,15 +63,30 @@ pub enum Error {
         #[source]
         source: serde_json::Error,
     },
+
+    #[error(
+        "failed to parse the JSON chat request body to a hash map: {source}"
+    )] ReceiveChatCompletionChunk {
+        #[source]
+        source: serde_json::Error,
+    },
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum ChatApiError {
-    #[error("the messages field is requried")]
-    MissingMessagesField,
+    #[error("failed to receive a chunk of bytes from the API: {source}")] ReceiveStreamedBytes {
+        #[source]
+        source: reqwest::Error,
+    },
 
-    #[error("the model field is requried")]
-    MissingModelField,
+    /// This error shouldn't happen
+    #[error("failed to get the first matching data chunk from the captures")]
+    GetFirstMatchingDataChunk,
+
+    #[error("failed to parse to a chat completion chunk: {source}")] ParseToChatCompletionChunk {
+        #[source]
+        source: serde_json::Error,
+    },
 }
 
 impl From<reqwest::Error> for Error {

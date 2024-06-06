@@ -1,4 +1,8 @@
 pub use crate::{
+    Result,
+    Error,
+    ChatApiError,
+    OpenAIClient,
     chat::*,
     system_message,
     user_message,

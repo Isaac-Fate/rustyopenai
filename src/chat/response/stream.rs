@@ -3,7 +3,7 @@ use bytes::{ Bytes, BytesMut };
 use futures::{ Stream, StreamExt };
 use regex::Regex;
 use lazy_static::lazy_static;
-use crate::{ Result, Error };
+use crate::{ Result, Error, ChatApiError };
 use super::ChatCompletionChunk;
 
 /// The content of the termination data chunk,
@@ -24,27 +24,30 @@ impl ChatCompletionStream {
         Self { stream: Box::pin(stream), buffer: BytesMut::new() }
     }
 
-    fn extract_first_chunk(
-        &mut self,
-        done_receiving: bool
-    ) -> Poll<Option<Result<ChatCompletionChunk>>> {
+    fn extract_first_chunk(&mut self) -> Option<Result<ExtractedChunk>> {
         // Convert buffer to string
         let buffer = self.buffer.clone();
         let buffer_str = String::from_utf8_lossy(&buffer);
 
-        println!("buffer_str: {}", buffer_str);
-
         // Match a data chunk from the start of the buffer
         if let Some(captures) = DATA_CHUNK_RE.captures(&buffer_str) {
             // Get the first match
-            let data_chunk_match = captures.get(1).expect("failed to get data chunk match");
+            let data_chunk_match = match captures.get(1) {
+                Some(data_chunk_match) => data_chunk_match,
+
+                // Actually, this is not reachable since
+                // there indeed exist some captures
+                None => {
+                    return Some(Err(Error::ChatApi(ChatApiError::GetFirstMatchingDataChunk)));
+                }
+            };
 
             // Get the matched data chunk as str
             let data_chunk = data_chunk_match.as_str();
 
             // Check if the data chunk is the termination data chunk
             if data_chunk == TERMINATION_DATA_CHUNK {
-                return Poll::Ready(None);
+                return Some(Ok(ExtractedChunk::Termination));
             }
 
             // Update the start position of the buffer
@@ -54,51 +57,97 @@ impl ChatCompletionStream {
             self.buffer = self.buffer.split_off(buffer_start);
 
             // Parse to a chat completion chunk
-            let chat_completion_chunk: ChatCompletionChunk = serde_json
-                ::from_str(data_chunk)
-                .unwrap();
+            let chat_completion_chunk: ChatCompletionChunk = match serde_json::from_str(data_chunk) {
+                Ok(chat_completion_chunk) => chat_completion_chunk,
+                Err(error) => {
+                    return Some(
+                        Err(
+                            Error::ChatApi(ChatApiError::ParseToChatCompletionChunk {
+                                source: error,
+                            })
+                        )
+                    );
+                }
+            };
 
-            Poll::Ready(Some(Ok(chat_completion_chunk)))
-        } else if done_receiving {
-            // Poll::Ready(Some(Err(Error::ApiKeyNotSet)))
-            Poll::Ready(None)
+            Some(Ok(ExtractedChunk::Normal(chat_completion_chunk)))
         } else {
-            Poll::Pending
+            None
         }
     }
+}
+
+enum ExtractedChunk {
+    Normal(ChatCompletionChunk),
+    Termination,
 }
 
 impl Stream for ChatCompletionStream {
     type Item = Result<ChatCompletionChunk>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        println!("!!! poll_next is called");
+        loop {
+            match self.stream.poll_next_unpin(cx) {
+                Poll::Ready(Some(Ok(bytes))) => {
+                    // Add newly received bytes to the buffer
+                    self.buffer.extend(&bytes);
 
-        match self.stream.poll_next_unpin(cx) {
-            Poll::Ready(Some(Ok(bytes))) => {
-                // Add newly received bytes to the buffer
-                self.buffer.extend(&bytes);
-
-                println!("bytes: {:?}", bytes);
-
-                self.extract_first_chunk(false)
-            }
-            Poll::Ready(Some(Err(error))) => {
-                // Poll::Ready(Some(Err(Error::ApiKeyNotSet)))
-                eprintln!("error: {}", error);
-                Poll::Ready(None)
-            }
-            Poll::Ready(None) => {
-                // The buffer is empty
-                if self.buffer.is_empty() {
-                    Poll::Ready(None)
-                } else {
-                    // The buffer is not empty yet,
-                    // which means there are still bytes to be processed
-                    self.extract_first_chunk(true)
+                    // Extract the first chunk from the buffer
+                    match self.extract_first_chunk() {
+                        Some(Ok(ExtractedChunk::Normal(chunk))) => {
+                            return Poll::Ready(Some(Ok(chunk)));
+                        }
+                        Some(Ok(ExtractedChunk::Termination)) => {
+                            return Poll::Ready(None);
+                        }
+                        Some(Err(error)) => {
+                            return Poll::Ready(Some(Err(error)));
+                        }
+                        None => {
+                            // Continue polling the bytes stream, and
+                            // extract the first chunk from the extended buffer
+                            continue;
+                        }
+                    }
+                }
+                Poll::Ready(Some(Err(error))) => {
+                    return Poll::Ready(
+                        Some(
+                            Err(
+                                Error::ChatApi(ChatApiError::ReceiveStreamedBytes { source: error })
+                            )
+                        )
+                    );
+                }
+                Poll::Ready(None) => {
+                    // The buffer is empty
+                    if self.buffer.is_empty() {
+                        return Poll::Ready(None);
+                    } else {
+                        // The buffer is not empty yet,
+                        // which means there are still bytes to be processed
+                        match self.extract_first_chunk() {
+                            Some(Ok(ExtractedChunk::Normal(chunk))) => {
+                                return Poll::Ready(Some(Ok(chunk)));
+                            }
+                            Some(Ok(ExtractedChunk::Termination)) => {
+                                return Poll::Ready(None);
+                            }
+                            Some(Err(error)) => {
+                                return Poll::Ready(Some(Err(error)));
+                            }
+                            None => {
+                                // Continue polling the bytes stream, and
+                                // extract the first chunk the buffer
+                                continue;
+                            }
+                        }
+                    }
+                }
+                Poll::Pending => {
+                    return Poll::Pending;
                 }
             }
-            Poll::Pending => Poll::Pending,
         }
     }
 }
