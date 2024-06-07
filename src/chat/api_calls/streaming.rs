@@ -83,8 +83,49 @@ mod tests {
                 system_message!("You are a helpful assistant."),
                 user_message!("What is the tallest building in Hong Kong?")
             ]
+        ).build();
+
+        // Get the stream
+        let mut chat_completion_stream = create_chat_completion_stream(
+            &client,
+            &request_body,
+            true
+        ).await?;
+
+        while let Some(chunk) = chat_completion_stream.next().await {
+            println!("{:#?}", chunk);
+        }
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn tool_call() -> Result<()> {
+        // Create a client
+        let client = OpenAIClient::builder().timeout(Duration::from_millis(3000)).build()?;
+
+        // Build the request body
+        let request_body = ChatRequestBody::builder(
+            "gpt-3.5-turbo",
+            vec![
+                system_message!("You are a helpful assistant."),
+                user_message!("What is the tallest building in Hong Kong?")
+            ]
         )
-        .build();
+            .tools(
+                vec![
+                    function!(
+                        "foo",
+                        description = "A dummy function",
+                        parameters = function_parameters! {
+                            "a": json!({ "type": "number" });
+                            "b": json!({ "type": "string" })
+                        }
+                    )
+                ]
+            )
+            .tool_choice(tool_choice!("foo"))
+            .build();
 
         // Get the stream
         let mut chat_completion_stream = create_chat_completion_stream(

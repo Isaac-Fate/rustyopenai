@@ -14,7 +14,7 @@ mod token_usage;
 pub use token_usage::ChatCompletionTokenUsage;
 
 mod tool;
-pub use tool::ChatCompletionToolCall;
+pub use tool::{ ChatCompletionToolCall, ChatCompletionChunkToolCall };
 
 mod stream;
 pub use stream::ChatCompletionStream;

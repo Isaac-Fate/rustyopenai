@@ -1,5 +1,5 @@
 use serde::Deserialize;
-use super::{ ChatCompletionFinishReason, ChatCompletionToolCall };
+use super::{ ChatCompletionFinishReason, ChatCompletionChunkToolCall };
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct ChatCompletionChunkChoice {
@@ -11,5 +11,5 @@ pub struct ChatCompletionChunkChoice {
 #[derive(Debug, Deserialize, Clone)]
 pub struct ChatCompletionChunkChoiceDelta {
     pub content: Option<String>,
-    pub tool_calls: Option<Vec<ChatCompletionToolCall>>,
+    pub tool_calls: Option<Vec<ChatCompletionChunkToolCall>>,
 }
