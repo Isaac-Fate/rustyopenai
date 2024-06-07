@@ -3,12 +3,23 @@ use crate::prelude::*;
 
 #[macro_export]
 macro_rules! system_message {
-    ($content:literal) => {
+    ($content:expr) => {
         ChatRequestMessage::System(SystemMessage::builder($content).build())
     };
 
-    ($content:literal, name = $name:literal) => {
+    ($content:expr, name = $name:expr) => {
         ChatRequestMessage::System(SystemMessage::builder($content).name($name).build())
+    };
+}
+
+#[macro_export]
+macro_rules! user_message {
+    ($content:expr) => {
+        ChatRequestMessage::User(UserMessage::builder($content).build())
+    };
+
+    ($content:expr, name = $name:literal) => {
+        ChatRequestMessage::User(UserMessage::builder($content).name($name).build())
     };
 }
 
@@ -199,6 +210,19 @@ mod tests {
             ChatRequestMessage::System(
                 SystemMessage::builder("Your are a helpful assistant.").name("Ferris").build()
             )
+        );
+    }
+
+    #[test]
+    fn user_message_macro() {
+        assert_eq!(
+            user_message!("Hello."),
+            ChatRequestMessage::User(UserMessage::builder("Hello.").build())
+        );
+
+        assert_eq!(
+            user_message!("Hello.", name = "Isaac"),
+            ChatRequestMessage::User(UserMessage::builder("Hello.").name("Isaac").build())
         );
     }
 

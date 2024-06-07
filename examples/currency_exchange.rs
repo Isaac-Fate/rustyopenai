@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 use serde::{ Deserialize, Serialize };
+use rustyopenai::prelude::*;
 
 const ENDPOINT: &str =
     "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/eur.json";
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> anyhow::Result<()> {
     for (amount, source, target) in [
         (100.0, CurrencyCode::EUR, CurrencyCode::CNY),
         (100.0, CurrencyCode::CNY, CurrencyCode::EUR),
@@ -14,6 +15,63 @@ async fn main() -> Result<()> {
     ] {
         print_currency_exchange_result(amount, source, target).await?;
     }
+
+    // Create an OpenAI client
+    let client = OpenAIClient::new()?;
+
+    // Build the request body
+    let request_body = ChatRequestBody::builder(
+        "gpt-3.5-turbo",
+        vec![
+            system_message!("You are a helpful assistant."),
+            user_message!("What is 100 Hong Kong dollars in Chinese Yuan?")
+        ]
+    )
+        .tools(
+            vec![
+                function!(
+                    "exchange_currency",
+                    description = "Converts a currency into another currency.",
+                    parameters = function_parameters! {
+                    "amount": json!({"type": "number", "description": "The amount to convert."}),
+                    "source": json!({"type": "string", "enum": ["eur", "cny", "hkd", "usd"], "description": "The currency to convert from."}),
+                    "target": json!({"type": "string", "enum": ["eur", "cny", "hkd", "usd"], "description": "The currency to convert to."})
+                }
+                )
+            ]
+        )
+        .build();
+
+    // Send the request
+    let completion = create_chat_completion(&client, &request_body).await?;
+
+    // Print the response
+    println!("{:#?}", completion);
+
+    // Extract the called function
+    let function = completion.choices
+        .first()
+        .unwrap()
+        .message.tool_calls.clone()
+        .unwrap()
+        .first()
+        .unwrap()
+        .clone().function;
+
+    assert_eq!(function.name, "exchange_currency");
+
+    // Get the arguments
+    let arguments = function.arguments;
+    let amount = arguments.get("amount").unwrap().as_f64().unwrap();
+    let source: CurrencyCode = serde_json::from_value(arguments.get("source").unwrap().to_owned())?;
+    let target: CurrencyCode = serde_json::from_value(arguments.get("target").unwrap().to_owned())?;
+
+    // Call the function
+    let target_amount = exchange_currency(amount, source, target).await?;
+
+    // Print the result
+    println!("question: What is 100 Hong Kong dollars in Chinese Yuan?");
+    println!("answer: {}", target_amount);
 
     Ok(())
 }

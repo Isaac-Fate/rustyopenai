@@ -5,8 +5,7 @@ use rustyopenai::prelude::*;
 #[tokio::main]
 async fn main() -> Result<()> {
     // Create a client
-    // let client = OpenAIClient::builder().timeout(Duration::from_millis(5000)).build()?;
-    let client = OpenAIClient::new()?;
+    let client = OpenAIClient::builder().timeout(Duration::from_millis(5000)).build()?;
 
     // Build the request body
     let request_body = ChatRequestBody::builder(

@@ -66,7 +66,7 @@ pub async fn create_chat_completion_stream(
 
 #[cfg(test)]
 mod tests {
-    use std::{ collections::HashMap, time::Duration };
+    use std::time::Duration;
     use futures::StreamExt;
     use crate::prelude::*;
     use super::*;
@@ -83,7 +83,8 @@ mod tests {
                 system_message!("You are a helpful assistant."),
                 user_message!("What is the tallest building in Hong Kong?")
             ]
-        ).build();
+        )
+        .build();
 
         // Get the stream
         let mut chat_completion_stream = create_chat_completion_stream(
@@ -93,53 +94,6 @@ mod tests {
         ).await?;
 
         while let Some(chunk) = chat_completion_stream.next().await {
-            println!("{:#?}", chunk);
-        }
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test() -> Result<()> {
-        // Create a client
-        let client = OpenAIClient::builder().timeout(Duration::from_millis(3000)).build()?;
-
-        // Build the request body
-        let request_body = ChatRequestBody::builder(
-            "gpt-3.5-turbo",
-            vec![
-                system_message!("You are a helpful assistant."),
-                user_message!("What is the tallest building in Hong Kong?")
-            ]
-        ).build();
-
-        let request_body = serde_json::to_value(&request_body).unwrap();
-
-        let mut request_body: HashMap<String, serde_json::Value> = serde_json
-            ::from_value(request_body)
-            .unwrap();
-
-        request_body.insert("stream".to_string(), serde_json::Value::Bool(true));
-
-        // Set the `stream_options` field
-        request_body.insert(
-            "stream_options".to_string(),
-            json!({
-                "include_usage": true
-            })
-        );
-
-        // Send the request
-        let response = client
-            .post(CHAT_COMPLETION_API_ENDPOINT)
-
-            .json(&request_body)
-            .send().await
-            .unwrap();
-
-        let mut stream = response.bytes_stream();
-
-        while let Some(chunk) = stream.next().await {
             println!("{:#?}", chunk);
         }
 

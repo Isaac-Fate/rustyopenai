@@ -14,3 +14,4 @@ pub use crate::{
 };
 
 pub use serde_json::json;
+pub use futures::StreamExt;
