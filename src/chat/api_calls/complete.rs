@@ -1,4 +1,4 @@
-use crate::{ Result, Error, OpenAIClient };
+use crate::{ Result, Error, OpenAIClient, ChatApiError };
 use super::super::{ endpoint::CHAT_COMPLETION_API_ENDPOINT, ChatRequestBody, ChatCompletion };
 
 pub async fn create_chat_completion(
@@ -23,7 +23,7 @@ pub async fn create_chat_completion(
     let response = match response.json::<ChatCompletion>().await {
         Ok(response) => response,
         Err(error) => {
-            return Err(Error::ParseToChatCompletion { source: error });
+            return Err(Error::ChatApi(ChatApiError::ParseToChatCompletion { source: error }));
         }
     };
 

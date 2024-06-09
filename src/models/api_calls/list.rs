@@ -1,10 +1,11 @@
 use serde::Deserialize;
-use crate::{ Error, OpenAIClient, Result };
-use super::MODELS_API_ENDPOINT;
+use serde_json::Value;
+use crate::{ Error, OpenAIClient, Result, ModelsApiError };
+use super::super::{ MODELS_API_ENDPOINT, Model };
 
 /// Lists the currently available models, and
 /// provides basic information about each one such as the owner and availability.
-pub async fn list_models(client: &OpenAIClient) -> Result<ListModelsResponse> {
+pub async fn list_models(client: &OpenAIClient) -> Result<Vec<Model>> {
     // Send the request
     let response = match client.get(MODELS_API_ENDPOINT).send().await {
         Ok(response) =>
@@ -20,25 +21,41 @@ pub async fn list_models(client: &OpenAIClient) -> Result<ListModelsResponse> {
     };
 
     // Deserialize the response
-    let response = match response.json::<ListModelsResponse>().await {
+    let response = match response.json::<Value>().await {
         Ok(response) => response,
         Err(error) => {
             return Err(Error::from(error));
         }
     };
 
-    Ok(response)
+    // Get the data property
+    let data = match response.get("data") {
+        Some(data) => data.clone(),
+        None => {
+            return Err(Error::ModelsApiError(ModelsApiError::MissingDataProperty));
+        }
+    };
+
+    // Parse to models
+    let models: Vec<Model> = match serde_json::from_value(data) {
+        Ok(models) => models,
+        Err(error) => {
+            return Err(Error::ModelsApiError(ModelsApiError::ParseToModels { source: error }));
+        }
+    };
+
+    Ok(models)
 }
 
 /// Lists the currently available model names.
 /// The model name is exactly its ID.
 pub async fn list_model_names(client: &OpenAIClient) -> Result<Vec<String>> {
     // List models
-    let response = list_models(client).await?;
+    let models = list_models(client).await?;
 
     // Extract the model names
     Ok(
-        response.data
+        models
             .into_iter()
             // We are only interested in the model name, i.e., its ID
             .map(|model_info| model_info.id)
@@ -71,9 +88,9 @@ mod tests {
         let client = OpenAIClient::new().unwrap();
 
         // Get the list of models
-        let response = list_models(&client).await.unwrap();
+        let models = list_models(&client).await.unwrap();
 
-        println!("{:#?}", response);
+        println!("{:#?}", models);
     }
 
     #[tokio::test]

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use serde_json::json;
-use crate::{ Result, Error, OpenAIClient };
+use crate::{ Result, Error, OpenAIClient, ChatApiError };
 use super::super::{ endpoint::CHAT_COMPLETION_API_ENDPOINT, ChatRequestBody, ChatCompletionStream };
 
 pub async fn create_chat_completion_stream(
@@ -15,7 +15,7 @@ pub async fn create_chat_completion_stream(
     let request_body = match serde_json::to_value(&request_body) {
         Ok(request_body) => request_body,
         Err(error) => {
-            return Err(Error::ChatRequestBodyToJson { source: error });
+            return Err(Error::ChatApi(ChatApiError::ChatRequestBodyToJson { source: error }));
         }
     };
 
@@ -25,7 +25,7 @@ pub async fn create_chat_completion_stream(
     {
         Ok(request_body) => request_body,
         Err(error) => {
-            return Err(Error::ChatRequestBodyJsonToMap { source: error });
+            return Err(Error::ChatApi(ChatApiError::ChatRequestBodyJsonToMap { source: error }));
         }
     };
 

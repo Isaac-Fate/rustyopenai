@@ -1,4 +1,4 @@
-use rustyopenai::*;
+use rustyopenai::{ *, models::* };
 
 #[test]
 fn test_openai_client() {
