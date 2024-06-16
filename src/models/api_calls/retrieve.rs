@@ -1,6 +1,7 @@
 use crate::{ Result, Error, ModelsApiError, OpenAIClient };
 use super::super::{ MODELS_API_ENDPOINT, Model };
 
+/// Retrieves a model instance, providing basic information about the model such as the owner and permissioning.
 pub async fn retrieve_model<S: AsRef<str>>(client: &OpenAIClient, model_name: S) -> Result<Model> {
     // Send the request
     let response = match
@@ -12,7 +13,7 @@ pub async fn retrieve_model<S: AsRef<str>>(client: &OpenAIClient, model_name: S)
                 Err(error) => {
                     if let Some(reqwest::StatusCode::NOT_FOUND) = error.status() {
                         return Err(
-                            Error::ModelsApiError(
+                            Error::ModelsApi(
                                 ModelsApiError::ModelNotFound(model_name.as_ref().to_string())
                             )
                         );
@@ -30,7 +31,7 @@ pub async fn retrieve_model<S: AsRef<str>>(client: &OpenAIClient, model_name: S)
     let model = match response.json::<Model>().await {
         Ok(model) => model,
         Err(error) => {
-            return Err(Error::ModelsApiError(ModelsApiError::ParseToModel { source: error }));
+            return Err(Error::ModelsApi(ModelsApiError::ParseToModel { source: error }));
         }
     };
 

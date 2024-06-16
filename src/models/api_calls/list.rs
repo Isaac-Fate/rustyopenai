@@ -1,5 +1,4 @@
 use serde::Deserialize;
-use serde_json::Value;
 use crate::{ Error, OpenAIClient, Result, ModelsApiError };
 use super::super::{ MODELS_API_ENDPOINT, Model };
 
@@ -21,10 +20,10 @@ pub async fn list_models(client: &OpenAIClient) -> Result<Vec<Model>> {
     };
 
     // Deserialize the response
-    let response = match response.json::<Value>().await {
+    let response = match response.json::<serde_json::Value>().await {
         Ok(response) => response,
         Err(error) => {
-            return Err(Error::from(error));
+            return Err(Error::ModelsApi(ModelsApiError::ParseToJson { source: error }));
         }
     };
 
@@ -32,7 +31,7 @@ pub async fn list_models(client: &OpenAIClient) -> Result<Vec<Model>> {
     let data = match response.get("data") {
         Some(data) => data.clone(),
         None => {
-            return Err(Error::ModelsApiError(ModelsApiError::MissingDataProperty));
+            return Err(Error::ModelsApi(ModelsApiError::MissingDataProperty));
         }
     };
 
@@ -40,7 +39,7 @@ pub async fn list_models(client: &OpenAIClient) -> Result<Vec<Model>> {
     let models: Vec<Model> = match serde_json::from_value(data) {
         Ok(models) => models,
         Err(error) => {
-            return Err(Error::ModelsApiError(ModelsApiError::ParseToModels { source: error }));
+            return Err(Error::ModelsApi(ModelsApiError::ParseToModels { source: error }));
         }
     };
 

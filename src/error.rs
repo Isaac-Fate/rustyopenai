@@ -47,7 +47,7 @@ pub enum Error {
         source: reqwest::Error,
     },
 
-    #[error("failed to request the models API: {0}")] ModelsApiError(ModelsApiError),
+    #[error("failed to request the models API: {0}")] ModelsApi(ModelsApiError),
 
     #[error("failed to request the chat API: {0}")] ChatApi(ChatApiError),
 }
@@ -56,7 +56,7 @@ pub enum Error {
 pub enum ModelsApiError {
     #[error("failed to parse the response to JSON: {source}")] ParseToJson {
         #[source]
-        source: serde_json::Error,
+        source: reqwest::Error,
     },
 
     #[error("the received JSON response does not contain the data property")]
